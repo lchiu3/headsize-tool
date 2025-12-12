@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Headphone Sizing App</title>
+    <script src="camera_utils.js"></script>
+    <script src="face_mesh.js"></script>
+    <script src="hands.js"></script>
+    
+    <style>
+        body { background: #0f0f0f; color: white; font-family: 'Segoe UI', sans-serif; display: flex; flex-direction: column; align-items: center; padding: 20px; }
+        .container { position: relative; width: 640px; height: 480px; background: #000; border-radius: 12px; overflow: hidden; box-shadow: 0 0 20px rgba(0,0,0,0.5); border: 2px solid #333; }
+        video { display: none; }
+        canvas { width: 100%; height: 100%; transform: scaleX(-1); }
+        .hud { position: absolute; top: 20px; left: 20px; background: rgba(0,0,0,0.8); padding: 15px; border-radius: 12px; pointer-events: none; }
+        .val { font-size: 32px; font-weight: bold; font-family: monospace; display: block; margin-top: 5px; }
+        .cyan { color: #00FFCC; } .magenta { color: #FF00FF; }
+        .instr-box { position: absolute; bottom: 30px; width: 100%; text-align: center; pointer-events: none; }
+        .instr-text { background: rgba(0,0,0,0.8); color: white; padding: 10px 20px; border-radius: 30px; font-weight: 500; border: 1px solid #444; }
+        .controls { margin-top: 20px; background: #1a1a1a; padding: 15px; border-radius: 12px; width: 640px; display: flex; justify-content: space-between; align-items: center; }
+        button { background: #333; color: #ccc; border: 1px solid #555; padding: 12px 24px; font-size: 14px; cursor: pointer; border-radius: 6px; }
+        button:hover { background: #444; color: white; }
+        .btn-active { background: #FF00FF !important; color: white !important; font-weight: bold;}
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <video class="input_video" playsinline></video>
+        <canvas class="output_canvas" width="640" height="480"></canvas>
+        <canvas id="ai_canvas" width="320" height="240" style="display:none"></canvas>
+        
+        <div class="hud">
+            <div style="margin-bottom: 15px;">
+                <span style="font-size:12px; color:#888;">HEAD WIDTH</span>
+                <span id="width-out" class="val cyan">--</span>
+            </div>
+            <div>
+                <span style="font-size:12px; color:#888;">HEAD HEIGHT</span>
+                <span id="height-out" class="val magenta">--</span>
+            </div>
+        </div>
+
+        <div class="instr-box">
+            <span id="instr" class="instr-text">Initializing System...</span>
+        </div>
+    </div>
+
+    <div class="controls">
+        <div>
+            Calibration (IPD): <strong id="ipd-val" style="color:#00FFCC">63.0</strong> mm 
+            <input type="range" id="ipd-slider" min="58" max="70" step="0.5" value="63" style="vertical-align: middle;">
+        </div>
+        <button id="btn-load-hands" onclick="loadHands()">Enable Height Tool</button>
+    </div>
+
+    <script>
+        const widthOut = document.getElementById('width-out');
+        const heightOut = document.getElementById('height-out');
+        const instr = document.getElementById('instr');
+        const canvasElement = document.querySelector('.output_canvas');
+        const ctx = canvasElement.getContext('2d');
+        const videoElement = document.querySelector('.input_video');
+        const btnHands = document.getElementById('btn-load-hands');
+        const aiCanvas = document.getElementById('ai_canvas');
+        const aiCtx = aiCanvas.getContext('2d');
+
+        let calibrationIPD = 63.0;
+        let faceResults = null;
+        let handResults = null;
+        let handsActive = false;
+        let isProcessingAI = false; 
+        let ghost = { x: 320, y: 240, w: 200, h: 250 };
+
+        document.getElementById('ipd-slider').addEventListener('input', (e) => {
+            calibrationIPD = parseFloat(e.target.value);
+            document.getElementById('ipd-val').innerText = calibrationIPD.toFixed(1);
+        });
+
+        function distance(p1, p2) { return Math.sqrt(Math.pow(p1.x - p2.x, 2) + Math.pow(p1.y - p2.y, 2)); }
+        function lerp(s, e, a) { return (1 - a) * s + a * e; }
+
+        function renderLoop() {
+            ctx.clearRect(0, 0, 640, 480);
+            if(videoElement.readyState >= 2) ctx.drawImage(videoElement, 0, 0, 640, 480);
+            drawOverlays();
+            requestAnimationFrame(renderLoop);
+        }
+
+        async function aiLoop() {
+            if(videoElement.readyState >= 2 && !isProcessingAI) {
+                isProcessingAI = true;
+                try {
+                    aiCtx.drawImage(videoElement, 0, 0, 320, 240);
+                    await window.faceMesh.send({image: aiCanvas});
+                    if(handsActive && window.hands) await window.hands.send({image: aiCanvas});
+                } catch(e) { }
+                isProcessingAI = false;
+            }
+            setTimeout(aiLoop, 300); 
+        }
+
+        function drawOverlays() {
+            let isPoseGood = false;
+            let faceLm = null;
+            if (faceResults && faceResults.multiFaceLandmarks && faceResults.multiFaceLandmarks.length > 0) {
+                faceLm = faceResults.multiFaceLandmarks[0];
+                const eyeL_y = faceLm[33].y; const eyeR_y = faceLm[263].y;
+                const tilt = Math.abs(eyeL_y - eyeR_y);
+                const nose_x = faceLm[1].x; const mid_x = (faceLm[454].x + faceLm[234].x) / 2;
+                const turn = Math.abs(nose_x - mid_x);
+                isPoseGood = (tilt < 0.05 && turn < 0.06);
+            }
+            let tx=320, ty=240, tw=250, th=300;
+            if(faceLm) {
+                const lx = faceLm[454].x * 640; const rx = faceLm[234].x * 640;
+                const ty_lm = faceLm[10].y * 480; const by_lm = faceLm[152].y * 480;
+                tw = (rx - lx) * 1.5; th = (by_lm - ty_lm) * 1.4;
+                tx = (lx + rx) / 2; ty = (ty_lm + by_lm) / 2;
+            }
+            ghost.x = lerp(ghost.x, tx, 0.1); ghost.y = lerp(ghost.y, ty, 0.1);
+            ghost.w = lerp(ghost.w, tw, 0.1); ghost.h = lerp(ghost.h, th, 0.1);
+
+            ctx.strokeStyle = isPoseGood ? "#00FFCC" : "rgba(255, 50, 50, 0.5)";
+            ctx.lineWidth = 3;
+            if(!isPoseGood && faceLm) ctx.setLineDash([5, 5]);
+            ctx.beginPath(); ctx.ellipse(ghost.x, ghost.y, ghost.w/2, ghost.h/2, 0, 0, 2*Math.PI); ctx.stroke();
+            ctx.setLineDash([]); ctx.lineWidth = 1; ctx.stroke(); // Draw oval
+
+            if(!faceLm) { instr.innerText = "Fit face in guide"; }
+            else if (!isPoseGood) { instr.innerText = "Look Straight"; widthOut.innerText = "--"; }
+            else {
+                instr.innerText = handsActive ? "POSE LOCKED. Touch Scalp." : "POSE LOCKED. Width Captured.";
+                const pL = {x: faceLm[454].x * 640, y: faceLm[454].y * 480};
+                const pR = {x: faceLm[234].x * 640, y: faceLm[234].y * 480};
+                let scalePx = 100;
+                if(faceLm[468] && faceLm[473]) scalePx = distance({x: faceLm[473].x*640, y: faceLm[473].y*480}, {x: faceLm[468].x*640, y: faceLm[468].y*480});
+                else scalePx = distance({x: faceLm[33].x*640, y: faceLm[33].y*480}, {x: faceLm[263].x*640, y: faceLm[263].y*480}) * 0.62;
+                const mmPx = calibrationIPD / scalePx;
+                
+                ctx.strokeStyle = "#00FFCC"; ctx.lineWidth = 3;
+                ctx.beginPath(); ctx.moveTo(pL.x, pL.y); ctx.lineTo(pR.x, pR.y); ctx.stroke();
+                widthOut.innerText = (distance(pL, pR) * mmPx).toFixed(1) + " mm";
+
+                if (handsActive && handResults && handResults.multiHandLandmarks.length > 0) {
+                    const finger = handResults.multiHandLandmarks[0][8];
+                    const fP = {x: finger.x * 640, y: finger.y * 480};
+                    if(fP.y < pL.y) { 
+                        const earLevelY = (pL.y + pR.y)/2;
+                        const centerX = (pL.x + pR.x)/2;
+                        ctx.strokeStyle = "#FF00FF";
+                        ctx.beginPath(); ctx.moveTo(centerX, earLevelY); ctx.lineTo(centerX, fP.y); ctx.stroke();
+                        ctx.beginPath(); ctx.arc(fP.x, fP.y, 6, 0, 2*Math.PI); ctx.fillStyle="#FF00FF"; ctx.fill();
+                        heightOut.innerText = (Math.abs(earLevelY - fP.y) * mmPx).toFixed(1) + " mm";
+                    }
+                }
+            }
+        }
+
+        async function startApp() {
+            try {
+                // Point to Google CDN for data files, but use local scripts for logic
+                const faceMesh = new FaceMesh({locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/${file}`});
+                faceMesh.setOptions({maxNumFaces: 1, refineLandmarks: true, minDetectionConfidence: 0.5, minTrackingConfidence: 0.5, useCpuBackend: true});
+                faceMesh.onResults((res) => { faceResults = res; });
+                await faceMesh.initialize();
+                window.faceMesh = faceMesh;
+
+                const stream = await navigator.mediaDevices.getUserMedia({ video: { width: 640, height: 480 } });
+                videoElement.srcObject = stream;
+                await videoElement.play();
+
+                renderLoop(); 
+                aiLoop();
+            } catch (err) { alert("Error: " + err.message); }
+        }
+
+        async function loadHands() {
+            if(handsActive) return;
+            btnHands.innerText = "Loading...";
+            try {
+                const hands = new Hands({locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`});
+                hands.setOptions({maxNumHands: 1, modelComplexity: 0, minDetectionConfidence: 0.5, minTrackingConfidence: 0.5, useCpuBackend: true});
+                hands.onResults((res) => { handResults = res; });
+                await hands.initialize();
+                window.hands = hands;
+                handsActive = true;
+                btnHands.innerText = "Height Tool Active";
+                btnHands.className = "btn-active";
+            } catch(e) { alert("Load Failed"); }
+        }
+
+        startApp();
+    </script>
+</body>
+</html>

@@ -2,15 +2,10 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Headphone Tool: Cloudflare Edition</title>
-    
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/mediapipe-camera-utils/0.3.1632432244/camera_utils.js" crossorigin="anonymous"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/mediapipe-face-mesh/0.4.1633559619/face_mesh.js" crossorigin="anonymous"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/mediapipe-hands/0.4.1646424915/hands.js" crossorigin="anonymous"></script>
-    
+    <title>Headphone Tool: ES Module</title>
     <style>
         body { background: #0f0f0f; color: white; font-family: 'Segoe UI', sans-serif; display: flex; flex-direction: column; align-items: center; padding: 20px; }
-        .container { position: relative; width: 640px; height: 480px; background: #000; border-radius: 12px; overflow: hidden; box-shadow: 0 0 20px rgba(0,0,0,0.5); border: 2px solid #333; }
+        .container { position: relative; width: 640px; height: 480px; background: #000; border-radius: 12px; overflow: hidden; border: 2px solid #333; }
         video { display: none; }
         canvas { width: 100%; height: 100%; transform: scaleX(-1); }
         .hud { position: absolute; top: 20px; left: 20px; background: rgba(0,0,0,0.8); padding: 15px; border-radius: 12px; pointer-events: none; }
@@ -43,7 +38,7 @@
         </div>
 
         <div class="instr-box">
-            <span id="instr" class="instr-text">Initializing Cloudflare AI...</span>
+            <span id="instr" class="instr-text">Loading Modules...</span>
         </div>
     </div>
 
@@ -52,10 +47,14 @@
             Calibration (IPD): <strong id="ipd-val" style="color:#00FFCC">63.0</strong> mm 
             <input type="range" id="ipd-slider" min="58" max="70" step="0.5" value="63" style="vertical-align: middle;">
         </div>
-        <button id="btn-load-hands" onclick="loadHands()">Enable Height Tool</button>
+        <button id="btn-load-hands">Enable Height Tool</button>
     </div>
 
-    <script>
+    <script type="module">
+        import { FaceMesh } from 'https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/face_mesh.js';
+        import { Hands } from 'https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js';
+        import { Camera } from 'https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js';
+
         const widthOut = document.getElementById('width-out');
         const heightOut = document.getElementById('height-out');
         const instr = document.getElementById('instr');
@@ -72,11 +71,16 @@
         let handsActive = false;
         let isProcessingAI = false; 
         let ghost = { x: 320, y: 240, w: 200, h: 250 };
+        let faceMesh = null;
+        let hands = null;
 
         document.getElementById('ipd-slider').addEventListener('input', (e) => {
             calibrationIPD = parseFloat(e.target.value);
             document.getElementById('ipd-val').innerText = calibrationIPD.toFixed(1);
         });
+
+        // Add Event Listener for Button manually since it is inside a module
+        btnHands.addEventListener('click', loadHands);
 
         function distance(p1, p2) { return Math.sqrt(Math.pow(p1.x - p2.x, 2) + Math.pow(p1.y - p2.y, 2)); }
         function lerp(s, e, a) { return (1 - a) * s + a * e; }
@@ -89,12 +93,12 @@
         }
 
         async function aiLoop() {
-            if(videoElement.readyState >= 2 && !isProcessingAI) {
+            if(videoElement.readyState >= 2 && !isProcessingAI && faceMesh) {
                 isProcessingAI = true;
                 try {
                     aiCtx.drawImage(videoElement, 0, 0, 320, 240);
-                    await window.faceMesh.send({image: aiCanvas});
-                    if(handsActive && window.hands) await window.hands.send({image: aiCanvas});
+                    await faceMesh.send({image: aiCanvas});
+                    if(handsActive && hands) await hands.send({image: aiCanvas});
                 } catch(e) { }
                 isProcessingAI = false;
             }
@@ -126,7 +130,7 @@
             ctx.lineWidth = 3;
             if(!isPoseGood && faceLm) ctx.setLineDash([5, 5]);
             ctx.beginPath(); ctx.ellipse(ghost.x, ghost.y, ghost.w/2, ghost.h/2, 0, 0, 2*Math.PI); ctx.stroke();
-            ctx.setLineDash([]); ctx.lineWidth = 1; ctx.stroke(); // Draw oval
+            ctx.setLineDash([]); ctx.lineWidth = 1; ctx.stroke(); 
 
             if(!faceLm) { instr.innerText = "Fit face in guide"; }
             else if (!isPoseGood) { instr.innerText = "Look Straight"; widthOut.innerText = "--"; }
@@ -160,35 +164,42 @@
 
         async function startApp() {
             try {
-                // Point to CLOUDFLARE CDN
-                const faceMesh = new FaceMesh({locateFile: (file) => `https://cdnjs.cloudflare.com/ajax/libs/mediapipe-face-mesh/0.4.1633559619/${file}`});
+                instr.innerText = "Importing AI...";
+                
+                // Init FaceMesh
+                faceMesh = new FaceMesh({locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/${file}`});
                 faceMesh.setOptions({maxNumFaces: 1, refineLandmarks: true, minDetectionConfidence: 0.5, minTrackingConfidence: 0.5, useCpuBackend: true});
                 faceMesh.onResults((res) => { faceResults = res; });
                 await faceMesh.initialize();
-                window.faceMesh = faceMesh;
 
+                instr.innerText = "Requesting Camera...";
                 const stream = await navigator.mediaDevices.getUserMedia({ video: { width: 640, height: 480 } });
                 videoElement.srcObject = stream;
                 await videoElement.play();
 
                 renderLoop(); 
                 aiLoop();
-            } catch (err) { alert("Error: " + err.message); }
+            } catch (err) { 
+                console.error(err);
+                instr.innerText = "Error: " + err.message; 
+                instr.className = "instr-text instr-bad";
+            }
         }
 
         async function loadHands() {
             if(handsActive) return;
             btnHands.innerText = "Loading...";
             try {
-                const hands = new Hands({locateFile: (file) => `https://cdnjs.cloudflare.com/ajax/libs/mediapipe-hands/0.4.1646424915/${file}`});
+                hands = new Hands({locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`});
                 hands.setOptions({maxNumHands: 1, modelComplexity: 0, minDetectionConfidence: 0.5, minTrackingConfidence: 0.5, useCpuBackend: true});
                 hands.onResults((res) => { handResults = res; });
                 await hands.initialize();
-                window.hands = hands;
                 handsActive = true;
                 btnHands.innerText = "Height Tool Active";
                 btnHands.className = "btn-active";
-            } catch(e) { alert("Load Failed"); }
+            } catch(e) { 
+                alert("Load Failed"); 
+            }
         }
 
         startApp();

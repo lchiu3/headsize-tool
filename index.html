@@ -2,10 +2,11 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Headphone Sizing App</title>
-    <script src="camera_utils.js"></script>
-    <script src="face_mesh.js"></script>
-    <script src="hands.js"></script>
+    <title>Headphone Tool: Cloudflare Edition</title>
+    
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/mediapipe-camera-utils/0.3.1632432244/camera_utils.js" crossorigin="anonymous"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/mediapipe-face-mesh/0.4.1633559619/face_mesh.js" crossorigin="anonymous"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/mediapipe-hands/0.4.1646424915/hands.js" crossorigin="anonymous"></script>
     
     <style>
         body { background: #0f0f0f; color: white; font-family: 'Segoe UI', sans-serif; display: flex; flex-direction: column; align-items: center; padding: 20px; }
@@ -42,7 +43,7 @@
         </div>
 
         <div class="instr-box">
-            <span id="instr" class="instr-text">Initializing System...</span>
+            <span id="instr" class="instr-text">Initializing Cloudflare AI...</span>
         </div>
     </div>
 
@@ -159,8 +160,8 @@
 
         async function startApp() {
             try {
-                // Point to Google CDN for data files, but use local scripts for logic
-                const faceMesh = new FaceMesh({locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/${file}`});
+                // Point to CLOUDFLARE CDN
+                const faceMesh = new FaceMesh({locateFile: (file) => `https://cdnjs.cloudflare.com/ajax/libs/mediapipe-face-mesh/0.4.1633559619/${file}`});
                 faceMesh.setOptions({maxNumFaces: 1, refineLandmarks: true, minDetectionConfidence: 0.5, minTrackingConfidence: 0.5, useCpuBackend: true});
                 faceMesh.onResults((res) => { faceResults = res; });
                 await faceMesh.initialize();
@@ -179,7 +180,7 @@
             if(handsActive) return;
             btnHands.innerText = "Loading...";
             try {
-                const hands = new Hands({locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`});
+                const hands = new Hands({locateFile: (file) => `https://cdnjs.cloudflare.com/ajax/libs/mediapipe-hands/0.4.1646424915/${file}`});
                 hands.setOptions({maxNumHands: 1, modelComplexity: 0, minDetectionConfidence: 0.5, minTrackingConfidence: 0.5, useCpuBackend: true});
                 hands.onResults((res) => { handResults = res; });
                 await hands.initialize();

@@ -2,235 +2,391 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Headphone Fitting Tool</title>
-    <script src="camera_utils.js"></script>
-    <script src="face_mesh.js"></script>
-    
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Headphone Sizing Tool</title>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/control_utils/control_utils.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/face_mesh.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js" crossorigin="anonymous"></script>
+
     <style>
-        /* Global Styles */
-        body { 
-            margin: 0; padding: 0; 
-            background-color: #f0f2f5; 
-            font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
-            height: 100vh; display: flex; align-items: center; justify-content: center;
+        body {
+            background-color: #f0f2f5; /* Plain colour background */
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            overflow: hidden;
         }
 
-        /* Card Container */
-        .wizard-card {
-            width: 600px; min-height: 500px;
-            background: white; border-radius: 24px;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
-            display: flex; flex-direction: column; align-items: center; justify-content: center;
-            padding: 40px; text-align: center; position: relative; overflow: hidden;
+        /* The Big Rounded Rectangle */
+        .card {
+            background-color: white;
+            width: 90%;
+            max-width: 800px;
+            height: 80vh;
+            border-radius: 24px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 2rem;
+            text-align: center;
+            position: relative;
+            overflow: hidden;
         }
 
-        /* Typography & Buttons */
-        h1 { margin: 0 0 20px; font-size: 28px; color: #333; }
-        p { color: #666; font-size: 18px; line-height: 1.5; margin-bottom: 30px; }
+        h1 { color: #333; margin-bottom: 1rem; }
+        p { color: #666; font-size: 1.1rem; max-width: 600px; line-height: 1.6; margin-bottom: 2rem; }
+
         .btn {
-            padding: 15px 40px; font-size: 18px; border: none; border-radius: 50px;
-            cursor: pointer; transition: transform 0.2s; margin: 10px; font-weight: 600;
+            padding: 15px 30px;
+            font-size: 1.2rem;
+            border: none;
+            border-radius: 50px;
+            cursor: pointer;
+            transition: transform 0.2s, background 0.2s;
+            margin: 10px;
+            background-color: #007bff;
+            color: white;
+            font-weight: 600;
         }
-        .btn-primary { background: #007bff; color: white; }
-        .btn-primary:hover { background: #0056b3; transform: scale(1.05); }
-        .btn-outline { background: white; border: 2px solid #ddd; color: #555; }
-        .btn-outline:hover { border-color: #007bff; color: #007bff; }
 
-        /* Step Visibility */
-        .step { display: none; width: 100%; height: 100%; flex-direction: column; align-items: center; justify-content: center; }
-        .active-step { display: flex; }
+        .btn:hover { transform: scale(1.05); background-color: #0056b3; }
+        .btn-outline { background-color: transparent; border: 2px solid #007bff; color: #007bff; }
+        .btn-outline:hover { background-color: #eef7ff; }
 
-        /* Camera & Canvas */
-        .cam-wrapper {
-            position: relative; width: 480px; height: 360px;
-            background: #000; border-radius: 12px; overflow: hidden;
-            box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+        .hidden { display: none !important; }
+
+        /* Video Container */
+        .video-container {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background: #000;
+            border-radius: 16px;
+            overflow: hidden;
         }
-        video { display: none; }
-        canvas { width: 100%; height: 100%; transform: scaleX(-1); object-fit: cover; }
+
+        video { transform: scaleX(-1); /* Mirror effect */ position: absolute; width: 100%; height: 100%; object-fit: cover; }
+        canvas { transform: scaleX(-1); position: absolute; width: 100%; height: 100%; object-fit: cover; }
+
+        .overlay-text {
+            position: absolute;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0,0,0,0.7);
+            color: white;
+            padding: 10px 20px;
+            border-radius: 20px;
+            font-size: 1.2rem;
+            z-index: 10;
+        }
+
+        .warning { background: rgba(255, 69, 58, 0.9); }
+        .success { background: rgba(50, 205, 50, 0.9); }
+
+        .illustration {
+            width: 300px;
+            height: 300px;
+            background: #eee;
+            border-radius: 12px;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            color: #aaa;
+        }
         
-        /* Overlays */
-        .warning-overlay {
-            position: absolute; top: 0; left: 0; right: 0; bottom: 0;
-            background: rgba(0,0,0,0.7); color: #ff4d4d;
-            font-weight: bold; font-size: 24px; display: none;
-            align-items: center; justify-content: center;
-        }
-        .progress-bar { width: 100%; height: 6px; background: #eee; border-radius: 3px; margin-top: 20px; overflow: hidden; }
-        .progress-fill { height: 100%; width: 0%; background: #00e676; transition: width 0.2s; }
-        .result-text { font-size: 64px; font-weight: bold; color: #333; margin: 20px 0; }
-        .graphic-ear { width: 120px; height: 120px; background: #eef; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin-bottom: 20px; font-size: 50px; }
+        /* IPD Input Styling */
+        .ipd-input-group { display: flex; flex-direction: column; align-items: center; gap: 10px; }
+        input[type="number"] { padding: 10px; font-size: 1rem; border-radius: 8px; border: 1px solid #ccc; width: 100px; text-align: center;}
     </style>
 </head>
 <body>
 
-    <div class="wizard-card">
-        
-        <div id="step-1" class="step active-step">
-            <h1>Let's Measure Your Head</h1>
-            <p>Please select your gender to calibrate the scale:</p>
-            <div>
-                <button class="btn btn-outline" onclick="setGender('male')">Male</button>
-                <button class="btn btn-outline" onclick="setGender('female')">Female</button>
-            </div>
-            <div style="margin-top:20px;">
-                <button class="btn btn-outline" style="font-size:14px; padding:10px 20px;" onclick="setGender('custom')">Set Custom IPD</button>
-            </div>
-        </div>
-
-        <div id="step-2" class="step">
-            <div class="graphic-ear">👂👆</div>
-            <h1>How to Measure</h1>
-            <p>
-                1. We will turn on your camera.<br>
-                2. Use your <strong>Index Fingers</strong> to touch the little bump (Tragus) in front of your ear holes.<br>
-                3. Keep your head straight and visible.
-            </p>
-            <button class="btn btn-primary" onclick="goToStep(3)">I Understand, Start</button>
-        </div>
-
-        <div id="step-3" class="step">
-            <h1 id="status-msg" style="font-size:20px;">Loading Local AI...</h1>
-            <div class="cam-wrapper">
-                <video class="input_video" playsinline></video>
-                <canvas class="output_canvas" width="640" height="480"></canvas>
-                <div id="warning-box" class="warning-overlay">Look Straight!</div>
-            </div>
-            <div style="width: 480px; text-align:left; margin-top:10px;">
-                <span style="font-size:12px; color:#888;">MEASUREMENT PROGRESS</span>
-                <div class="progress-bar"><div id="prog-fill" class="progress-fill"></div></div>
+    <div class="card" id="app-card">
+        <div id="step-1">
+            <h1>Let's calibrate.</h1>
+            <p>To measure your head size accurately, we use the average Inter-Pupillary Distance (distance between eyes) as a scale reference.</p>
+            <p>Please select your biological gender for the best average, or enter a custom IPD if known.</p>
+            
+            <button class="btn" onclick="setGender('male')">Male</button>
+            <button class="btn" onclick="setGender('female')">Female</button>
+            
+            <div style="margin-top: 20px;">
+                <p style="font-size: 0.9rem; margin-bottom: 5px;">Or enter custom IPD (mm):</p>
+                <div class="ipd-input-group">
+                    <input type="number" id="custom-ipd" placeholder="63" value="63">
+                    <button class="btn btn-outline" onclick="setCustomIPD()">Set Custom</button>
+                </div>
             </div>
         </div>
 
-        <div id="step-4" class="step">
-            <h1>Your Head Breadth</h1>
-            <div class="result-text"><span id="final-val">--</span> mm</div>
-            <p>This is the Bitragional Width (Ear to Ear).</p>
-            <button class="btn btn-primary" onclick="location.reload()">Measure Again</button>
+        <div id="step-2" class="hidden">
+            <h1>How to measure</h1>
+            <div class="illustration">
+                [Illustration: Point index fingers to Tragus (ears)]
+            </div>
+            <p>Place the tips of your <b>index fingers</b> on your left and right <b>Tragus</b> (the small cartilage flap in front of your ear canal).</p>
+            <button class="btn" onclick="startMeasurement()">OK, I understand</button>
+        </div>
+
+        <div id="step-3" class="hidden" style="width:100%; height:100%;">
+            <div class="video-container">
+                <video id="input_video"></video>
+                <canvas id="output_canvas"></canvas>
+                <div id="status-message" class="overlay-text">Initializing Camera...</div>
+            </div>
+        </div>
+
+        <div id="step-4" class="hidden">
+            <h1>Measurement Complete!</h1>
+            <p>Your estimated Head Breadth is:</p>
+            <h2 style="font-size: 4rem; color: #007bff; margin: 0;"><span id="result-value">0</span> mm</h2>
+            <br>
+            <button class="btn btn-outline" onclick="location.reload()">Measure Again</button>
         </div>
     </div>
 
-    <script>
-        let currentIPD = 63.0;
-        let stableFrames = 0;
-        let measurements = [];
-        const FRAMES_TO_COMPLETE = 60;
-        let isMeasuring = false;
-        
-        function goToStep(num) {
-            document.querySelectorAll('.step').forEach(el => el.classList.remove('active-step'));
-            document.getElementById(`step-${num}`).classList.add('active-step');
-            if(num === 3) startCamera();
-        }
+<script>
+    // --- Configuration & State ---
+    let selectedIPD = 63; // Default
+    let measurementState = 'idle'; // idle, measuring, locked
+    let stabilityBuffer = [];
+    const STABILITY_THRESHOLD = 2.0; // mm variance allowed
+    const FRAMES_TO_LOCK = 40; // Approx 1.5 seconds of stability
 
-        function setGender(type) {
-            if (type === 'male') currentIPD = 64.0;
-            if (type === 'female') currentIPD = 61.5;
-            if (type === 'custom') {
-                let val = prompt("Enter IPD in mm:", "63");
-                if(val) currentIPD = parseFloat(val);
-            }
+    // DOM Elements
+    const step1 = document.getElementById('step-1');
+    const step2 = document.getElementById('step-2');
+    const step3 = document.getElementById('step-3');
+    const step4 = document.getElementById('step-4');
+    const statusMsg = document.getElementById('status-message');
+    const canvasElement = document.getElementById('output_canvas');
+    const canvasCtx = canvasElement.getContext('2d');
+    const videoElement = document.getElementById('input_video');
+
+    // --- Steps Logic ---
+
+    function setGender(gender) {
+        // Average IPD values (approximate)
+        if (gender === 'male') selectedIPD = 64.0;
+        if (gender === 'female') selectedIPD = 61.7;
+        goToStep(2);
+    }
+
+    function setCustomIPD() {
+        const val = document.getElementById('custom-ipd').value;
+        if (val && val > 30 && val < 90) {
+            selectedIPD = parseFloat(val);
             goToStep(2);
+        } else {
+            alert("Please enter a valid IPD (between 30 and 90mm)");
+        }
+    }
+
+    function goToStep(num) {
+        step1.classList.add('hidden');
+        step2.classList.add('hidden');
+        step3.classList.add('hidden');
+        step4.classList.add('hidden');
+        document.getElementById(`step-${num}`).classList.remove('hidden');
+    }
+
+    function startMeasurement() {
+        goToStep(3);
+        initComputerVision();
+    }
+
+    // --- Computer Vision Logic ---
+
+    function initComputerVision() {
+        // 1. Setup Face Mesh
+        const faceMesh = new FaceMesh({locateFile: (file) => {
+            return `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/${file}`;
+        }});
+        faceMesh.setOptions({
+            maxNumFaces: 1,
+            refineLandmarks: true, // Crucial for Iris detection
+            minDetectionConfidence: 0.5,
+            minTrackingConfidence: 0.5
+        });
+
+        // 2. Setup Hands
+        const hands = new Hands({locateFile: (file) => {
+            return `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`;
+        }});
+        hands.setOptions({
+            maxNumHands: 2,
+            modelComplexity: 1,
+            minDetectionConfidence: 0.5,
+            minTrackingConfidence: 0.5
+        });
+
+        // Combine results manually since we run them sequentially on the same frame
+        let currentFaceResults = null;
+
+        faceMesh.onResults((results) => {
+            currentFaceResults = results;
+        });
+
+        hands.onResults((handResults) => {
+            processCombinedResults(currentFaceResults, handResults);
+        });
+
+        // Camera loop
+        const camera = new Camera(videoElement, {
+            onFrame: async () => {
+                // We send data to faceMesh first
+                await faceMesh.send({image: videoElement});
+                // Then to hands (using the same image frame ideally)
+                await hands.send({image: videoElement});
+            },
+            width: 1280,
+            height: 720
+        });
+        camera.start();
+    }
+
+    function processCombinedResults(faceResults, handResults) {
+        // Clear canvas
+        canvasElement.width = videoElement.videoWidth;
+        canvasElement.height = videoElement.videoHeight;
+        canvasCtx.save();
+        canvasCtx.clearRect(0, 0, canvasElement.width, canvasElement.height);
+        
+        // Draw video? (Optional, helps user see)
+        // canvasCtx.drawImage(faceResults.image, 0, 0, canvasElement.width, canvasElement.height);
+
+        if (!faceResults || !faceResults.multiFaceLandmarks || faceResults.multiFaceLandmarks.length === 0) {
+            updateStatus("No face detected", "warning");
+            return;
         }
 
-        const videoElement = document.querySelector('.input_video');
-        const canvasElement = document.querySelector('.output_canvas');
-        const ctx = canvasElement.getContext('2d');
-        const warningBox = document.getElementById('warning-box');
-        const progFill = document.getElementById('prog-fill');
-        const statusMsg = document.getElementById('status-msg');
+        const landmarks = faceResults.multiFaceLandmarks[0];
 
-        function onResults(results) {
-            ctx.clearRect(0, 0, 640, 480);
-            ctx.drawImage(results.image, 0, 0, 640, 480);
+        // 1. Check Head Pose (Rotation)
+        // Simple check: compare distance from nose tip (1) to left cheek (234) vs right cheek (454)
+        const nose = landmarks[1];
+        const leftCheek = landmarks[234];
+        const rightCheek = landmarks[454];
 
-            if (results.multiFaceLandmarks && results.multiFaceLandmarks.length > 0) {
-                const face = results.multiFaceLandmarks[0];
-                
-                // Pose Check
-                const nose = face[1];
-                const leftEar = face[234]; const rightEar = face[454];
-                const midX = (leftEar.x + rightEar.x) / 2;
-                const turn = Math.abs(nose.x - midX);
-                const tilt = Math.abs(leftEar.y - rightEar.y);
+        // We assume normalized coordinates (0-1)
+        const distLeft = Math.abs(nose.x - leftCheek.x);
+        const distRight = Math.abs(nose.x - rightCheek.x);
+        const ratio = distLeft / distRight;
 
-                if (turn > 0.05 || tilt > 0.05) {
-                    warningBox.style.display = "flex";
-                    warningBox.innerText = turn > 0.05 ? "Look Straight Ahead" : "Head Tilted";
-                    stableFrames = Math.max(0, stableFrames - 2);
-                } else {
-                    warningBox.style.display = "none";
-                    
-                    // Draw Line
-                    const pL = {x: leftEar.x * 640, y: leftEar.y * 480};
-                    const pR = {x: rightEar.x * 640, y: rightEar.y * 480};
-                    
-                    ctx.beginPath(); ctx.moveTo(pL.x, pL.y); ctx.lineTo(pR.x, pR.y);
-                    ctx.lineWidth = 4; ctx.strokeStyle = "#00e676"; ctx.stroke();
-                    ctx.beginPath(); ctx.arc(pL.x, pL.y, 8, 0, 2*Math.PI); ctx.arc(pR.x, pR.y, 8, 0, 2*Math.PI);
-                    ctx.fillStyle = "#00e676"; ctx.fill();
+        if (ratio < 0.6 || ratio > 1.4) {
+            updateStatus("Rotate head to center", "warning");
+            stabilityBuffer = []; // Reset stability
+            canvasCtx.restore();
+            return;
+        }
 
-                    // Calculate
-                    const leftIris = face[468]; const rightIris = face[473];
-                    const irisDistPx = Math.sqrt(Math.pow((leftIris.x - rightIris.x)*640, 2) + Math.pow((leftIris.y - rightIris.y)*480, 2));
-                    const mmPerPx = currentIPD / irisDistPx;
-                    const headWidthPx = Math.sqrt(Math.pow(pL.x - pR.x, 2) + Math.pow(pL.y - pR.y, 2));
-                    
-                    stableFrames++;
-                    measurements.push(headWidthPx * mmPerPx);
-                    if(measurements.length > 30) measurements.shift();
-                    
-                    statusMsg.innerText = "Hold Still... Measuring...";
-                }
+        // 2. Calculate Scale (Pixels per MM) using Irises
+        // Left Iris center: 468, Right Iris center: 473
+        const leftIris = landmarks[468];
+        const rightIris = landmarks[473];
 
-                let pct = Math.min(100, (stableFrames / FRAMES_TO_COMPLETE) * 100);
-                progFill.style.width = pct + "%";
+        const dx = (leftIris.x - rightIris.x) * canvasElement.width;
+        const dy = (leftIris.y - rightIris.y) * canvasElement.height;
+        const pixelDistanceEyes = Math.sqrt(dx*dx + dy*dy);
+        
+        const mmPerPixel = selectedIPD / pixelDistanceEyes;
 
-                if (stableFrames >= FRAMES_TO_COMPLETE && isMeasuring) {
-                    isMeasuring = false;
-                    finishMeasurement();
-                }
-            } else {
-                warningBox.style.display = "flex"; warningBox.innerText = "Face Not Detected";
+        // Draw Eye markers
+        drawPoint(leftIris, 'cyan');
+        drawPoint(rightIris, 'cyan');
+
+
+        // 3. Hand Detection
+        if (!handResults.multiHandLandmarks || handResults.multiHandLandmarks.length < 2) {
+            updateStatus("Put both index fingers on ears", "warning");
+            stabilityBuffer = [];
+        } else {
+            // Find Index Finger Tips (Landmark 8)
+            const indexTips = [];
+            for (const handLandmarks of handResults.multiHandLandmarks) {
+                indexTips.push(handLandmarks[8]);
+                drawPoint(handLandmarks[8], 'lime');
             }
+
+            // Calculate Distance between fingers
+            const f1 = indexTips[0];
+            const f2 = indexTips[1];
+            
+            const fDx = (f1.x - f2.x) * canvasElement.width;
+            const fDy = (f1.y - f2.y) * canvasElement.height;
+            const fingerPixelDist = Math.sqrt(fDx*fDx + fDy*fDy);
+
+            const calculatedHeadBreadth = fingerPixelDist * mmPerPixel;
+
+            // 4. Stability Check
+            handleStability(calculatedHeadBreadth);
         }
 
-        function finishMeasurement() {
-            const sum = measurements.reduce((a, b) => a + b, 0);
-            const avg = (sum / measurements.length).toFixed(1);
-            document.getElementById('final-val').innerText = avg;
-            goToStep(4);
-            videoElement.srcObject.getTracks().forEach(t => t.stop());
+        canvasCtx.restore();
+    }
+
+    function handleStability(currentMeasurement) {
+        // Push to buffer
+        stabilityBuffer.push(currentMeasurement);
+        if (stabilityBuffer.length > FRAMES_TO_LOCK) {
+            stabilityBuffer.shift(); // Keep buffer size fixed
         }
 
-        async function startCamera() {
-            isMeasuring = true;
-            statusMsg.innerText = "Loading Local Brain...";
-            try {
-                // LOCAL MODE: Uses files in your GitHub repo
-                const faceMesh = new FaceMesh({locateFile: (file) => {
-                    if(file.includes('.wasm')) return 'face_mesh.wasm';
-                    if(file.includes('.data')) return 'face_mesh.data';
-                    return file;
-                }});
-                
-                faceMesh.setOptions({
-                    maxNumFaces: 1, refineLandmarks: true,
-                    minDetectionConfidence: 0.5, minTrackingConfidence: 0.5
-                });
-                faceMesh.onResults(onResults);
-                await faceMesh.initialize();
-                
-                statusMsg.innerText = "Starting Camera...";
-                const camera = new Camera(videoElement, {
-                    onFrame: async () => { await faceMesh.send({image: videoElement}); },
-                    width: 640, height: 480
-                });
-                await camera.start();
-            } catch (err) {
-                alert("Error: " + err.message + "\nCheck if face_mesh.wasm is in your GitHub!");
+        if (stabilityBuffer.length === FRAMES_TO_LOCK) {
+            // Calculate variance/standard deviation
+            const mean = stabilityBuffer.reduce((a, b) => a + b) / stabilityBuffer.length;
+            const variance = stabilityBuffer.reduce((a, b) => a + Math.pow(b - mean, 2), 0) / stabilityBuffer.length;
+            
+            // Display live reading
+            updateStatus(`Measuring: ${Math.round(mean)} mm... Hold still`, "normal");
+
+            if (variance < STABILITY_THRESHOLD) {
+                // Success!
+                finishMeasurement(mean);
             }
+        } else {
+            updateStatus("Hold still...", "normal");
         }
-    </script>
+    }
+
+    function finishMeasurement(value) {
+        // Stop Camera
+        videoElement.srcObject.getTracks().forEach(track => track.stop());
+        
+        // Display Result
+        document.getElementById('result-value').innerText = Math.round(value);
+        goToStep(4);
+    }
+
+    function updateStatus(text, type) {
+        statusMsg.innerText = text;
+        statusMsg.className = 'overlay-text'; // reset
+        if (type === 'warning') statusMsg.classList.add('warning');
+        if (type === 'success') statusMsg.classList.add('success');
+    }
+
+    function drawPoint(landmark, color) {
+        const x = landmark.x * canvasElement.width;
+        const y = landmark.y * canvasElement.height;
+        canvasCtx.beginPath();
+        canvasCtx.arc(x, y, 5, 0, 2 * Math.PI);
+        canvasCtx.fillStyle = color;
+        canvasCtx.fill();
+    }
+
+</script>
 </body>
 </html>

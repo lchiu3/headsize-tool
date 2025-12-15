@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Headphone Sizing Tool</title>
+    <title>Headphone Sizing Tool + Ghost Guide</title>
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/control_utils/control_utils.js" crossorigin="anonymous"></script>
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js" crossorigin="anonymous"></script>
@@ -12,102 +12,55 @@
 
     <style>
         body {
-            background-color: #f0f2f5; /* Plain colour background */
+            background-color: #f0f2f5;
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            height: 100vh;
-            margin: 0;
-            overflow: hidden;
+            display: flex; justify-content: center; align-items: center;
+            height: 100vh; margin: 0; overflow: hidden;
         }
 
-        /* The Big Rounded Rectangle */
         .card {
-            background-color: white;
-            width: 90%;
-            max-width: 800px;
-            height: 80vh;
-            border-radius: 24px;
-            box-shadow: 0 10px 25px rgba(0,0,0,0.1);
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            padding: 2rem;
-            text-align: center;
-            position: relative;
-            overflow: hidden;
+            background-color: white; width: 90%; max-width: 800px; height: 80vh;
+            border-radius: 24px; box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            padding: 2rem; text-align: center; position: relative; overflow: hidden;
         }
 
         h1 { color: #333; margin-bottom: 1rem; }
         p { color: #666; font-size: 1.1rem; max-width: 600px; line-height: 1.6; margin-bottom: 2rem; }
 
         .btn {
-            padding: 15px 30px;
-            font-size: 1.2rem;
-            border: none;
-            border-radius: 50px;
-            cursor: pointer;
-            transition: transform 0.2s, background 0.2s;
-            margin: 10px;
-            background-color: #007bff;
-            color: white;
-            font-weight: 600;
+            padding: 15px 30px; font-size: 1.2rem; border: none; border-radius: 50px;
+            cursor: pointer; transition: transform 0.2s, background 0.2s; margin: 10px;
+            background-color: #007bff; color: white; font-weight: 600;
         }
-
         .btn:hover { transform: scale(1.05); background-color: #0056b3; }
         .btn-outline { background-color: transparent; border: 2px solid #007bff; color: #007bff; }
         .btn-outline:hover { background-color: #eef7ff; }
-
         .hidden { display: none !important; }
 
-        /* Video Container */
         .video-container {
-            position: relative;
-            width: 100%;
-            height: 100%;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            background: #000;
-            border-radius: 16px;
-            overflow: hidden;
+            position: relative; width: 100%; height: 100%; display: flex;
+            justify-content: center; align-items: center; background: #000;
+            border-radius: 16px; overflow: hidden;
         }
 
-        video { transform: scaleX(-1); /* Mirror effect */ position: absolute; width: 100%; height: 100%; object-fit: cover; }
+        /* NOTE: Video is not mirrored, Canvas IS mirrored. This is easier for drawing alignment. */
+        video { position: absolute; width: 100%; height: 100%; object-fit: cover; }
         canvas { transform: scaleX(-1); position: absolute; width: 100%; height: 100%; object-fit: cover; }
 
         .overlay-text {
-            position: absolute;
-            top: 20px;
-            left: 50%;
-            transform: translateX(-50%);
-            background: rgba(0,0,0,0.7);
-            color: white;
-            padding: 10px 20px;
-            border-radius: 20px;
-            font-size: 1.2rem;
-            z-index: 10;
+            position: absolute; top: 20px; left: 50%; transform: translateX(-50%);
+            background: rgba(0,0,0,0.7); color: white; padding: 10px 20px;
+            border-radius: 20px; font-size: 1.2rem; z-index: 10; transition: all 0.3s ease;
         }
-
         .warning { background: rgba(255, 69, 58, 0.9); }
         .success { background: rgba(50, 205, 50, 0.9); }
 
         .illustration {
-            width: 300px;
-            height: 300px;
-            background: #eee;
-            border-radius: 12px;
-            margin-bottom: 20px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-weight: bold;
-            color: #aaa;
+            width: 300px; height: 300px; background: #eee; border-radius: 12px;
+            margin-bottom: 20px; display: flex; align-items: center; justify-content: center;
+            font-weight: bold; color: #aaa;
         }
-        
-        /* IPD Input Styling */
         .ipd-input-group { display: flex; flex-direction: column; align-items: center; gap: 10px; }
         input[type="number"] { padding: 10px; font-size: 1rem; border-radius: 8px; border: 1px solid #ccc; width: 100px; text-align: center;}
     </style>
@@ -119,10 +72,8 @@
             <h1>Let's calibrate.</h1>
             <p>To measure your head size accurately, we use the average Inter-Pupillary Distance (distance between eyes) as a scale reference.</p>
             <p>Please select your biological gender for the best average, or enter a custom IPD if known.</p>
-            
             <button class="btn" onclick="setGender('male')">Male</button>
             <button class="btn" onclick="setGender('female')">Female</button>
-            
             <div style="margin-top: 20px;">
                 <p style="font-size: 0.9rem; margin-bottom: 5px;">Or enter custom IPD (mm):</p>
                 <div class="ipd-input-group">
@@ -134,9 +85,7 @@
 
         <div id="step-2" class="hidden">
             <h1>How to measure</h1>
-            <div class="illustration">
-                [Illustration: Point index fingers to Tragus (ears)]
-            </div>
+            <div class="illustration">[Illustration: Point index fingers to Tragus (ears)]</div>
             <p>Place the tips of your <b>index fingers</b> on your left and right <b>Tragus</b> (the small cartilage flap in front of your ear canal).</p>
             <button class="btn" onclick="startMeasurement()">OK, I understand</button>
         </div>
@@ -159,14 +108,11 @@
     </div>
 
 <script>
-    // --- Configuration & State ---
-    let selectedIPD = 63; // Default
-    let measurementState = 'idle'; // idle, measuring, locked
+    let selectedIPD = 63; 
     let stabilityBuffer = [];
-    const STABILITY_THRESHOLD = 2.0; // mm variance allowed
-    const FRAMES_TO_LOCK = 40; // Approx 1.5 seconds of stability
+    const STABILITY_THRESHOLD = 2.0; 
+    const FRAMES_TO_LOCK = 40; 
 
-    // DOM Elements
     const step1 = document.getElementById('step-1');
     const step2 = document.getElementById('step-2');
     const step3 = document.getElementById('step-3');
@@ -176,10 +122,7 @@
     const canvasCtx = canvasElement.getContext('2d');
     const videoElement = document.getElementById('input_video');
 
-    // --- Steps Logic ---
-
     function setGender(gender) {
-        // Average IPD values (approximate)
         if (gender === 'male') selectedIPD = 64.0;
         if (gender === 'female') selectedIPD = 61.7;
         goToStep(2);
@@ -196,10 +139,7 @@
     }
 
     function goToStep(num) {
-        step1.classList.add('hidden');
-        step2.classList.add('hidden');
-        step3.classList.add('hidden');
-        step4.classList.add('hidden');
+        [step1, step2, step3, step4].forEach(s => s.classList.add('hidden'));
         document.getElementById(`step-${num}`).classList.remove('hidden');
     }
 
@@ -208,181 +148,181 @@
         initComputerVision();
     }
 
-    // --- Computer Vision Logic ---
-
     function initComputerVision() {
-        // 1. Setup Face Mesh
-        const faceMesh = new FaceMesh({locateFile: (file) => {
-            return `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/${file}`;
-        }});
-        faceMesh.setOptions({
-            maxNumFaces: 1,
-            refineLandmarks: true, // Crucial for Iris detection
-            minDetectionConfidence: 0.5,
-            minTrackingConfidence: 0.5
-        });
+        const faceMesh = new FaceMesh({locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/${file}`});
+        faceMesh.setOptions({ maxNumFaces: 1, refineLandmarks: true, minDetectionConfidence: 0.5, minTrackingConfidence: 0.5 });
 
-        // 2. Setup Hands
-        const hands = new Hands({locateFile: (file) => {
-            return `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`;
-        }});
-        hands.setOptions({
-            maxNumHands: 2,
-            modelComplexity: 1,
-            minDetectionConfidence: 0.5,
-            minTrackingConfidence: 0.5
-        });
+        const hands = new Hands({locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`});
+        hands.setOptions({ maxNumHands: 2, modelComplexity: 1, minDetectionConfidence: 0.5, minTrackingConfidence: 0.5 });
 
-        // Combine results manually since we run them sequentially on the same frame
         let currentFaceResults = null;
+        faceMesh.onResults((results) => { currentFaceResults = results; });
+        hands.onResults((handResults) => { processCombinedResults(currentFaceResults, handResults); });
 
-        faceMesh.onResults((results) => {
-            currentFaceResults = results;
-        });
-
-        hands.onResults((handResults) => {
-            processCombinedResults(currentFaceResults, handResults);
-        });
-
-        // Camera loop
         const camera = new Camera(videoElement, {
             onFrame: async () => {
-                // We send data to faceMesh first
                 await faceMesh.send({image: videoElement});
-                // Then to hands (using the same image frame ideally)
                 await hands.send({image: videoElement});
             },
-            width: 1280,
-            height: 720
+            width: 1280, height: 720
         });
         camera.start();
     }
 
     function processCombinedResults(faceResults, handResults) {
-        // Clear canvas
         canvasElement.width = videoElement.videoWidth;
         canvasElement.height = videoElement.videoHeight;
         canvasCtx.save();
         canvasCtx.clearRect(0, 0, canvasElement.width, canvasElement.height);
-        
-        // Draw video? (Optional, helps user see)
-        // canvasCtx.drawImage(faceResults.image, 0, 0, canvasElement.width, canvasElement.height);
 
         if (!faceResults || !faceResults.multiFaceLandmarks || faceResults.multiFaceLandmarks.length === 0) {
-            updateStatus("No face detected", "warning");
-            return;
-        }
-
-        const landmarks = faceResults.multiFaceLandmarks[0];
-
-        // 1. Check Head Pose (Rotation)
-        // Simple check: compare distance from nose tip (1) to left cheek (234) vs right cheek (454)
-        const nose = landmarks[1];
-        const leftCheek = landmarks[234];
-        const rightCheek = landmarks[454];
-
-        // We assume normalized coordinates (0-1)
-        const distLeft = Math.abs(nose.x - leftCheek.x);
-        const distRight = Math.abs(nose.x - rightCheek.x);
-        const ratio = distLeft / distRight;
-
-        if (ratio < 0.6 || ratio > 1.4) {
-            updateStatus("Rotate head to center", "warning");
-            stabilityBuffer = []; // Reset stability
+            updateStatus("Align face with camera", "warning");
             canvasCtx.restore();
             return;
         }
 
-        // 2. Calculate Scale (Pixels per MM) using Irises
-        // Left Iris center: 468, Right Iris center: 473
+        const landmarks = faceResults.multiFaceLandmarks[0];
+        const width = canvasElement.width;
+        const height = canvasElement.height;
+
+        // --- NEW: Calculate and Draw Dynamic Ghost Outline ---
+        // Key landmarks for bounds: Top(10), Bottom(152), Left(234), Right(454)
+        const topY = landmarks[10].y * height;
+        const bottomY = landmarks[152].y * height;
+        const leftX = landmarks[234].x * width;
+        const rightX = landmarks[454].x * width;
+        
+        const centerX = (leftX + rightX) / 2;
+        const centerY = (topY + bottomY) / 2;
+        // Add slight padding (1.1x) so the head fits *inside* the ghost
+        const radiusX = Math.abs(rightX - leftX) / 2 * 1.1; 
+        const radiusY = Math.abs(bottomY - topY) / 2 * 1.1;
+
+        drawGhostOverlay(centerX, centerY, radiusX, radiusY);
+        // --------------------------------------------------
+
+
+        // 1. Check Head Pose (Rotation)
+        const nose = landmarks[1];
+        const leftCheekVal = landmarks[234].x;
+        const rightCheekVal = landmarks[454].x;
+        const distLeft = Math.abs(nose.x - leftCheekVal);
+        const distRight = Math.abs(nose.x - rightCheekVal);
+        const ratio = distLeft / distRight;
+
+        if (ratio < 0.7 || ratio > 1.3) {
+            updateStatus("Look straight ahead", "warning");
+            stabilityBuffer = []; 
+            canvasCtx.restore();
+            return;
+        }
+
+        // 2. Calculate Scale (Pixels per MM) using Irises (468 & 473)
         const leftIris = landmarks[468];
         const rightIris = landmarks[473];
-
-        const dx = (leftIris.x - rightIris.x) * canvasElement.width;
-        const dy = (leftIris.y - rightIris.y) * canvasElement.height;
+        const dx = (leftIris.x - rightIris.x) * width;
+        const dy = (leftIris.y - rightIris.y) * height;
         const pixelDistanceEyes = Math.sqrt(dx*dx + dy*dy);
-        
         const mmPerPixel = selectedIPD / pixelDistanceEyes;
 
-        // Draw Eye markers
-        drawPoint(leftIris, 'cyan');
-        drawPoint(rightIris, 'cyan');
+        drawPoint(leftIris, '#00BFFF'); // Deep Sky Blue for eyes
+        drawPoint(rightIris, '#00BFFF');
 
 
         // 3. Hand Detection
         if (!handResults.multiHandLandmarks || handResults.multiHandLandmarks.length < 2) {
-            updateStatus("Put both index fingers on ears", "warning");
+            updateStatus("Place index fingers on ears", "normal");
             stabilityBuffer = [];
         } else {
-            // Find Index Finger Tips (Landmark 8)
             const indexTips = [];
             for (const handLandmarks of handResults.multiHandLandmarks) {
-                indexTips.push(handLandmarks[8]);
-                drawPoint(handLandmarks[8], 'lime');
+                indexTips.push(handLandmarks[8]); // Index finger tip
+                drawPoint(handLandmarks[8], '#32CD32'); // Lime green for fingers
             }
 
-            // Calculate Distance between fingers
             const f1 = indexTips[0];
             const f2 = indexTips[1];
-            
-            const fDx = (f1.x - f2.x) * canvasElement.width;
-            const fDy = (f1.y - f2.y) * canvasElement.height;
+            const fDx = (f1.x - f2.x) * width;
+            const fDy = (f1.y - f2.y) * height;
             const fingerPixelDist = Math.sqrt(fDx*fDx + fDy*fDy);
-
             const calculatedHeadBreadth = fingerPixelDist * mmPerPixel;
 
-            // 4. Stability Check
             handleStability(calculatedHeadBreadth);
         }
 
         canvasCtx.restore();
     }
 
+
+    // --- NEW: Ghost Drawing Function ---
+    function drawGhostOverlay(cx, cy, rx, ry) {
+        canvasCtx.save();
+        canvasCtx.strokeStyle = 'rgba(255, 255, 255, 0.4)';
+        canvasCtx.lineWidth = 3;
+        canvasCtx.setLineDash([15, 10]); // Dashed line look
+
+        // Main Head Oval
+        canvasCtx.beginPath();
+        canvasCtx.ellipse(cx, cy, rx, ry, 0, 0, 2 * Math.PI);
+        canvasCtx.stroke();
+
+        // Eye Guides (Approximate positions relative to head size)
+        const eyeOffsetY = ry * 0.15; 
+        const eyeOffsetX = rx * 0.4;
+        const eyeRadius = rx * 0.1;
+
+        canvasCtx.setLineDash([]); // Solid lines for features
+        canvasCtx.lineWidth = 2;
+        
+        // Left Eye Guide
+        canvasCtx.beginPath();
+        canvasCtx.arc(cx - eyeOffsetX, cy - eyeOffsetY, eyeRadius, 0, 2 * Math.PI);
+        canvasCtx.stroke();
+        // Right Eye Guide
+        canvasCtx.beginPath();
+        canvasCtx.arc(cx + eyeOffsetX, cy - eyeOffsetY, eyeRadius, 0, 2 * Math.PI);
+        canvasCtx.stroke();
+    }
+    // ------------------------------------
+
+
     function handleStability(currentMeasurement) {
-        // Push to buffer
         stabilityBuffer.push(currentMeasurement);
-        if (stabilityBuffer.length > FRAMES_TO_LOCK) {
-            stabilityBuffer.shift(); // Keep buffer size fixed
-        }
+        if (stabilityBuffer.length > FRAMES_TO_LOCK) stabilityBuffer.shift();
 
         if (stabilityBuffer.length === FRAMES_TO_LOCK) {
-            // Calculate variance/standard deviation
             const mean = stabilityBuffer.reduce((a, b) => a + b) / stabilityBuffer.length;
             const variance = stabilityBuffer.reduce((a, b) => a + Math.pow(b - mean, 2), 0) / stabilityBuffer.length;
             
-            // Display live reading
-            updateStatus(`Measuring: ${Math.round(mean)} mm... Hold still`, "normal");
+            updateStatus(`Measuring: ${Math.round(mean)}mm... Hold still`, "success");
 
             if (variance < STABILITY_THRESHOLD) {
-                // Success!
                 finishMeasurement(mean);
             }
         } else {
-            updateStatus("Hold still...", "normal");
+            updateStatus("Hold still...", "success");
         }
     }
 
     function finishMeasurement(value) {
-        // Stop Camera
         videoElement.srcObject.getTracks().forEach(track => track.stop());
-        
-        // Display Result
         document.getElementById('result-value').innerText = Math.round(value);
         goToStep(4);
     }
 
     function updateStatus(text, type) {
         statusMsg.innerText = text;
-        statusMsg.className = 'overlay-text'; // reset
+        statusMsg.className = 'overlay-text'; 
         if (type === 'warning') statusMsg.classList.add('warning');
         if (type === 'success') statusMsg.classList.add('success');
+        if (type === 'normal') {} // default gray
     }
 
     function drawPoint(landmark, color) {
         const x = landmark.x * canvasElement.width;
         const y = landmark.y * canvasElement.height;
         canvasCtx.beginPath();
-        canvasCtx.arc(x, y, 5, 0, 2 * Math.PI);
+        canvasCtx.arc(x, y, 6, 0, 2 * Math.PI);
         canvasCtx.fillStyle = color;
         canvasCtx.fill();
     }

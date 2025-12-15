@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Headphone Sizing Tool + Ghost Guide</title>
+    <title>Headphone Sizing Tool + Enhanced Ghost Guides</title>
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/control_utils/control_utils.js" crossorigin="anonymous"></script>
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js" crossorigin="anonymous"></script>
@@ -44,7 +44,7 @@
             border-radius: 16px; overflow: hidden;
         }
 
-        /* NOTE: Video is not mirrored, Canvas IS mirrored. This is easier for drawing alignment. */
+        /* Video is not mirrored, Canvas IS mirrored for intuitive drawing alignment. */
         video { position: absolute; width: 100%; height: 100%; object-fit: cover; }
         canvas { transform: scaleX(-1); position: absolute; width: 100%; height: 100%; object-fit: cover; }
 
@@ -52,12 +52,13 @@
             position: absolute; top: 20px; left: 50%; transform: translateX(-50%);
             background: rgba(0,0,0,0.7); color: white; padding: 10px 20px;
             border-radius: 20px; font-size: 1.2rem; z-index: 10; transition: all 0.3s ease;
+            white-space: nowrap;
         }
         .warning { background: rgba(255, 69, 58, 0.9); }
         .success { background: rgba(50, 205, 50, 0.9); }
 
         .illustration {
-            width: 300px; height: 300px; background: #eee; border-radius: 12px;
+            width: 300px; height: 200px; background: #eee; border-radius: 12px;
             margin-bottom: 20px; display: flex; align-items: center; justify-content: center;
             font-weight: bold; color: #aaa;
         }
@@ -70,24 +71,23 @@
     <div class="card" id="app-card">
         <div id="step-1">
             <h1>Let's calibrate.</h1>
-            <p>To measure your head size accurately, we use the average Inter-Pupillary Distance (distance between eyes) as a scale reference.</p>
-            <p>Please select your biological gender for the best average, or enter a custom IPD if known.</p>
+            <p>Select gender for average eye distance (IPD) scale.</p>
             <button class="btn" onclick="setGender('male')">Male</button>
             <button class="btn" onclick="setGender('female')">Female</button>
             <div style="margin-top: 20px;">
-                <p style="font-size: 0.9rem; margin-bottom: 5px;">Or enter custom IPD (mm):</p>
-                <div class="ipd-input-group">
-                    <input type="number" id="custom-ipd" placeholder="63" value="63">
-                    <button class="btn btn-outline" onclick="setCustomIPD()">Set Custom</button>
-                </div>
+                 <p style="font-size: 0.9rem; margin-bottom: 5px;">Or custom IPD (mm):</p>
+                 <input type="number" id="custom-ipd" placeholder="63" value="63" style="padding: 5px; border-radius: 4px; border:1px solid #ccc;">
+                 <button class="btn btn-outline" style="padding: 5px 15px; font-size: 1rem;" onclick="setCustomIPD()">Set</button>
             </div>
         </div>
 
         <div id="step-2" class="hidden">
             <h1>How to measure</h1>
-            <div class="illustration">[Illustration: Point index fingers to Tragus (ears)]</div>
-            <p>Place the tips of your <b>index fingers</b> on your left and right <b>Tragus</b> (the small cartilage flap in front of your ear canal).</p>
-            <button class="btn" onclick="startMeasurement()">OK, I understand</button>
+            <div class="illustration">
+                [Illustration showing fingers on Tragus]
+            </div>
+            <p>Align your head with the ghost outline. Then, place your <b>index fingers</b> on your left and right <b>Tragus</b> (the ear flaps shown in the guides).</p>
+            <button class="btn" onclick="startMeasurement()">OK, Start</button>
         </div>
 
         <div id="step-3" class="hidden" style="width:100%; height:100%;">
@@ -110,8 +110,8 @@
 <script>
     let selectedIPD = 63; 
     let stabilityBuffer = [];
-    const STABILITY_THRESHOLD = 2.0; 
-    const FRAMES_TO_LOCK = 40; 
+    const STABILITY_THRESHOLD = 2.5; // Slightly looser threshold for easier usage
+    const FRAMES_TO_LOCK = 30; // Faster lock (approx 1 sec)
 
     const step1 = document.getElementById('step-1');
     const step2 = document.getElementById('step-2');
@@ -123,19 +123,14 @@
     const videoElement = document.getElementById('input_video');
 
     function setGender(gender) {
-        if (gender === 'male') selectedIPD = 64.0;
-        if (gender === 'female') selectedIPD = 61.7;
+        selectedIPD = (gender === 'male') ? 64.0 : 61.7;
         goToStep(2);
     }
 
     function setCustomIPD() {
-        const val = document.getElementById('custom-ipd').value;
-        if (val && val > 30 && val < 90) {
-            selectedIPD = parseFloat(val);
-            goToStep(2);
-        } else {
-            alert("Please enter a valid IPD (between 30 and 90mm)");
-        }
+        const val = parseFloat(document.getElementById('custom-ipd').value);
+        if (val && val > 30 && val < 90) { selectedIPD = val; goToStep(2); } 
+        else { alert("Please enter valid IPD (30-90mm)"); }
     }
 
     function goToStep(num) {
@@ -172,118 +167,138 @@
     function processCombinedResults(faceResults, handResults) {
         canvasElement.width = videoElement.videoWidth;
         canvasElement.height = videoElement.videoHeight;
+        const width = canvasElement.width;
+        const height = canvasElement.height;
+
         canvasCtx.save();
-        canvasCtx.clearRect(0, 0, canvasElement.width, canvasElement.height);
+        canvasCtx.clearRect(0, 0, width, height);
 
         if (!faceResults || !faceResults.multiFaceLandmarks || faceResults.multiFaceLandmarks.length === 0) {
-            updateStatus("Align face with camera", "warning");
+            updateStatus("Align face with guide", "warning");
+            // Draw a static generic ghost if no face is detected yet
+            drawGhostOverlay(width/2, height/2, width/6, height/4);
             canvasCtx.restore();
             return;
         }
 
         const landmarks = faceResults.multiFaceLandmarks[0];
-        const width = canvasElement.width;
-        const height = canvasElement.height;
 
-        // --- NEW: Calculate and Draw Dynamic Ghost Outline ---
-        // Key landmarks for bounds: Top(10), Bottom(152), Left(234), Right(454)
+        // Calculate Dynamic Face Bounds for the Ghost
         const topY = landmarks[10].y * height;
         const bottomY = landmarks[152].y * height;
         const leftX = landmarks[234].x * width;
         const rightX = landmarks[454].x * width;
-        
         const centerX = (leftX + rightX) / 2;
         const centerY = (topY + bottomY) / 2;
-        // Add slight padding (1.1x) so the head fits *inside* the ghost
         const radiusX = Math.abs(rightX - leftX) / 2 * 1.1; 
         const radiusY = Math.abs(bottomY - topY) / 2 * 1.1;
 
+        // Draw the enhanced ghost overlay
         drawGhostOverlay(centerX, centerY, radiusX, radiusY);
-        // --------------------------------------------------
-
 
         // 1. Check Head Pose (Rotation)
-        const nose = landmarks[1];
+        const noseVal = landmarks[1].x;
         const leftCheekVal = landmarks[234].x;
         const rightCheekVal = landmarks[454].x;
-        const distLeft = Math.abs(nose.x - leftCheekVal);
-        const distRight = Math.abs(nose.x - rightCheekVal);
-        const ratio = distLeft / distRight;
+        const ratio = Math.abs(noseVal - leftCheekVal) / Math.abs(noseVal - rightCheekVal);
 
         if (ratio < 0.7 || ratio > 1.3) {
-            updateStatus("Look straight ahead", "warning");
+            updateStatus("Look straight ahead at crosshair", "warning");
             stabilityBuffer = []; 
             canvasCtx.restore();
             return;
         }
 
-        // 2. Calculate Scale (Pixels per MM) using Irises (468 & 473)
+        // 2. Calculate Scale
         const leftIris = landmarks[468];
         const rightIris = landmarks[473];
         const dx = (leftIris.x - rightIris.x) * width;
         const dy = (leftIris.y - rightIris.y) * height;
-        const pixelDistanceEyes = Math.sqrt(dx*dx + dy*dy);
-        const mmPerPixel = selectedIPD / pixelDistanceEyes;
+        const pxDistEyes = Math.sqrt(dx*dx + dy*dy);
+        const mmPerPixel = selectedIPD / pxDistEyes;
 
-        drawPoint(leftIris, '#00BFFF'); // Deep Sky Blue for eyes
-        drawPoint(rightIris, '#00BFFF');
+        // Draw detected eyes (Solid Blue)
+        drawPoint(leftIris, '#00BFFF', 5); 
+        drawPoint(rightIris, '#00BFFF', 5);
 
 
         // 3. Hand Detection
         if (!handResults.multiHandLandmarks || handResults.multiHandLandmarks.length < 2) {
-            updateStatus("Place index fingers on ears", "normal");
+            updateStatus("Place index fingers on ear targets", "normal");
             stabilityBuffer = [];
         } else {
-            const indexTips = [];
-            for (const handLandmarks of handResults.multiHandLandmarks) {
-                indexTips.push(handLandmarks[8]); // Index finger tip
-                drawPoint(handLandmarks[8], '#32CD32'); // Lime green for fingers
-            }
+            const indexTips = handResults.multiHandLandmarks.map(hl => hl[8]);
+            // Draw detected fingers (Solid Green)
+            indexTips.forEach(tip => drawPoint(tip, '#32CD32', 8));
 
-            const f1 = indexTips[0];
-            const f2 = indexTips[1];
+            const f1 = indexTips[0]; const f2 = indexTips[1];
             const fDx = (f1.x - f2.x) * width;
             const fDy = (f1.y - f2.y) * height;
-            const fingerPixelDist = Math.sqrt(fDx*fDx + fDy*fDy);
-            const calculatedHeadBreadth = fingerPixelDist * mmPerPixel;
-
-            handleStability(calculatedHeadBreadth);
+            const fingerPxDist = Math.sqrt(fDx*fDx + fDy*fDy);
+            
+            handleStability(fingerPxDist * mmPerPixel);
         }
-
         canvasCtx.restore();
     }
 
 
-    // --- NEW: Ghost Drawing Function ---
+    // --- UPDATED: Enhanced Ghost Drawing Function ---
     function drawGhostOverlay(cx, cy, rx, ry) {
         canvasCtx.save();
-        canvasCtx.strokeStyle = 'rgba(255, 255, 255, 0.4)';
-        canvasCtx.lineWidth = 3;
-        canvasCtx.setLineDash([15, 10]); // Dashed line look
+        
+        // General Ghost Style (Dashed White)
+        canvasCtx.strokeStyle = 'rgba(255, 255, 255, 0.5)';
+        canvasCtx.lineWidth = 2;
+        canvasCtx.setLineDash([10, 10]); 
 
-        // Main Head Oval
+        // 1. Head Oval
         canvasCtx.beginPath();
         canvasCtx.ellipse(cx, cy, rx, ry, 0, 0, 2 * Math.PI);
         canvasCtx.stroke();
 
-        // Eye Guides (Approximate positions relative to head size)
-        const eyeOffsetY = ry * 0.15; 
-        const eyeOffsetX = rx * 0.4;
-        const eyeRadius = rx * 0.1;
+        // 2. Center Crosshair
+        canvasCtx.beginPath();
+        canvasCtx.moveTo(cx, cy - ry * 1.2); canvasCtx.lineTo(cx, cy + ry * 1.2); // Vertical
+        canvasCtx.moveTo(cx - rx * 1.2, cy); canvasCtx.lineTo(cx + rx * 1.2, cy); // Horizontal
+        canvasCtx.stroke();
 
-        canvasCtx.setLineDash([]); // Solid lines for features
-        canvasCtx.lineWidth = 2;
+        // 3. Eye Guides (Solid thin circles)
+        canvasCtx.setLineDash([]); 
+        canvasCtx.lineWidth = 1;
+        const eyeOffsetY = ry * 0.15; const eyeOffsetX = rx * 0.4; const eyeRadius = rx * 0.1;
+        canvasCtx.beginPath();
+        canvasCtx.arc(cx - eyeOffsetX, cy - eyeOffsetY, eyeRadius, 0, 2 * Math.PI); // Left
+        canvasCtx.arc(cx + eyeOffsetX, cy - eyeOffsetY, eyeRadius, 0, 2 * Math.PI); // Right
+        canvasCtx.stroke();
+
+        // 4. Ear/Finger Target Guides (Prominent Dashed Circles)
+        canvasCtx.setLineDash([5, 5]); 
+        canvasCtx.lineWidth = 3;
+        canvasCtx.strokeStyle = 'rgba(255, 255, 255, 0.7)'; // Brighter
+
+        // Approx Tragus position is slightly below center, at the edge of the head oval
+        const earTargetY = cy + (ry * 0.1); 
+        const earTargetRadius = 20; // Fixed pixel size for visibility
+
+        // Left Target
+        canvasCtx.beginPath();
+        canvasCtx.arc(cx - rx, earTargetY, earTargetRadius, 0, 2 * Math.PI);
+        canvasCtx.stroke();
         
-        // Left Eye Guide
+        // Right Target
         canvasCtx.beginPath();
-        canvasCtx.arc(cx - eyeOffsetX, cy - eyeOffsetY, eyeRadius, 0, 2 * Math.PI);
+        canvasCtx.arc(cx + rx, earTargetY, earTargetRadius, 0, 2 * Math.PI);
         canvasCtx.stroke();
-        // Right Eye Guide
+
+        // Measurement Axis Line (connecting ear targets)
+        canvasCtx.lineWidth = 1;
         canvasCtx.beginPath();
-        canvasCtx.arc(cx + eyeOffsetX, cy - eyeOffsetY, eyeRadius, 0, 2 * Math.PI);
+        canvasCtx.moveTo(cx - rx + earTargetRadius, earTargetY);
+        canvasCtx.lineTo(cx + rx - earTargetRadius, earTargetY);
         canvasCtx.stroke();
+
+        canvasCtx.restore();
     }
-    // ------------------------------------
 
 
     function handleStability(currentMeasurement) {
@@ -296,11 +311,9 @@
             
             updateStatus(`Measuring: ${Math.round(mean)}mm... Hold still`, "success");
 
-            if (variance < STABILITY_THRESHOLD) {
-                finishMeasurement(mean);
-            }
+            if (variance < STABILITY_THRESHOLD) finishMeasurement(mean);
         } else {
-            updateStatus("Hold still...", "success");
+            updateStatus("Hold fingers still on targets...", "success");
         }
     }
 
@@ -315,18 +328,16 @@
         statusMsg.className = 'overlay-text'; 
         if (type === 'warning') statusMsg.classList.add('warning');
         if (type === 'success') statusMsg.classList.add('success');
-        if (type === 'normal') {} // default gray
     }
 
-    function drawPoint(landmark, color) {
+    function drawPoint(landmark, color, size) {
         const x = landmark.x * canvasElement.width;
         const y = landmark.y * canvasElement.height;
         canvasCtx.beginPath();
-        canvasCtx.arc(x, y, 6, 0, 2 * Math.PI);
+        canvasCtx.arc(x, y, size, 0, 2 * Math.PI);
         canvasCtx.fillStyle = color;
         canvasCtx.fill();
     }
-
 </script>
 </body>
 </html>

@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Auto-Calibrated Head Measurement</title>
+    <title>Headphone Sizing - Auto Calibrated</title>
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/control_utils/control_utils.js" crossorigin="anonymous"></script>
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js" crossorigin="anonymous"></script>
@@ -12,112 +12,130 @@
 
     <style>
         body {
-            background-color: #f0f2f5;
+            background-color: #222; /* Dark background for better contrast */
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             display: flex; justify-content: center; align-items: center;
             height: 100vh; margin: 0; overflow: hidden;
+            color: white;
         }
 
-        .card {
-            background-color: white; width: 90%; max-width: 900px; height: 85vh;
-            border-radius: 24px; box-shadow: 0 10px 25px rgba(0,0,0,0.1);
-            display: flex; flex-direction: column; align-items: center; justify-content: center;
-            padding: 2rem; text-align: center; position: relative; overflow: hidden;
+        /* The Main App Container */
+        .app-container {
+            position: relative;
+            width: 90%; max-width: 900px;
+            height: 85vh;
+            background: black;
+            border-radius: 24px;
+            overflow: hidden;
+            box-shadow: 0 20px 50px rgba(0,0,0,0.5);
         }
 
-        h1 { color: #333; margin-bottom: 0.5rem; }
-        p { color: #666; font-size: 1.1rem; max-width: 600px; line-height: 1.6; margin-bottom: 2rem; }
-
-        .btn {
-            padding: 15px 30px; font-size: 1.2rem; border: none; border-radius: 50px;
-            cursor: pointer; transition: transform 0.2s, background 0.2s; margin: 10px;
-            background-color: #007bff; color: white; font-weight: 600;
+        /* LAYER 1: The Camera (Always stays in the back) */
+        .video-layer {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            z-index: 1; /* Bottom layer */
         }
-        .btn:hover { transform: scale(1.05); background-color: #0056b3; }
-        .hidden { display: none !important; }
-
-        .video-container {
-            position: relative; width: 100%; height: 100%; display: flex;
-            justify-content: center; align-items: center; background: #000;
-            border-radius: 16px; overflow: hidden;
-        }
-
         video { position: absolute; width: 100%; height: 100%; object-fit: cover; }
         canvas { transform: scaleX(-1); position: absolute; width: 100%; height: 100%; object-fit: cover; }
 
-        /* Overlay UI Elements */
-        .overlay-text {
-            position: absolute; top: 20px; left: 50%; transform: translateX(-50%);
-            background: rgba(0,0,0,0.7); color: white; padding: 10px 20px;
-            border-radius: 20px; font-size: 1.2rem; z-index: 10;
+        /* LAYER 2: The UI Overlays (Sit on top of video) */
+        .ui-layer {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            z-index: 10; /* Top layer */
+            display: flex; flex-direction: column; 
+            align-items: center; justify-content: center;
+            text-align: center;
+            background: rgba(0, 0, 0, 0.6); /* Semi-transparent dimming */
+            transition: opacity 0.3s;
+        }
+        
+        /* When "Active" (measuring), we remove the dim background so user sees clearly */
+        .ui-layer.transparent-mode {
+            background: rgba(0,0,0,0); 
+            justify-content: flex-start; /* Move text to top */
+            padding-top: 40px;
         }
 
-        /* Calibration Progress UI */
-        .calibration-ui {
-            position: absolute; bottom: 30px; left: 50%; transform: translateX(-50%);
-            display: flex; gap: 15px; z-index: 10;
+        .hidden { display: none !important; }
+
+        h1 { margin-bottom: 0.5rem; font-size: 2rem; text-shadow: 0 2px 4px rgba(0,0,0,0.5); }
+        p { font-size: 1.1rem; max-width: 600px; line-height: 1.6; margin-bottom: 2rem; color: #ddd; }
+
+        .btn {
+            padding: 15px 30px; font-size: 1.2rem; border: none; border-radius: 50px;
+            cursor: pointer; transition: transform 0.2s, background 0.2s;
+            background-color: #007bff; color: white; font-weight: 600;
+            box-shadow: 0 4px 15px rgba(0,123,255,0.4);
+        }
+        .btn:hover { transform: scale(1.05); background-color: #0056b3; }
+
+        /* Calibration Checkboxes */
+        .calibration-status {
+            display: flex; gap: 10px; margin-top: 20px;
         }
         .cal-item {
-            background: rgba(0,0,0,0.5); color: white; padding: 10px 15px;
-            border-radius: 10px; font-weight: bold; border: 2px solid rgba(255,255,255,0.3);
-            transition: all 0.3s ease;
+            background: rgba(255,255,255,0.1); padding: 8px 15px; border-radius: 20px;
+            border: 1px solid rgba(255,255,255,0.3); font-size: 0.9rem;
         }
-        .cal-item.done { background: #32CD32; border-color: #32CD32; }
+        .cal-item.done { background: #32CD32; border-color: #32CD32; color: black; font-weight: bold;}
 
-        /* Step 2 Illustration Placeholder */
-        .illustration {
-            width: 300px; height: 200px; background: #eee; border-radius: 12px;
-            margin-bottom: 20px; display: flex; align-items: center; justify-content: center;
-            font-weight: bold; color: #aaa;
+        /* Top Status Bar (for measuring) */
+        .status-pill {
+            background: rgba(0,0,0,0.8); padding: 10px 25px; border-radius: 30px;
+            font-size: 1.2rem; border: 1px solid rgba(255,255,255,0.2);
+            margin-top: 10px;
         }
     </style>
 </head>
 <body>
 
-    <div class="card">
+    <div class="app-container">
         
-        <div id="step-intro">
+        <div class="video-layer">
+            <video id="input_video"></video>
+            <canvas id="output_canvas"></canvas>
+        </div>
+
+        <div id="ui-intro" class="ui-layer">
             <h1>3D Head Calibration</h1>
-            <p>Instead of guessing your size, we will calibrate using your webcam.</p>
-            <p>We will ask you to slowly turn your head <b>Left, Right, Up, and Down</b> to capture a 3D model of your face.</p>
-            <button class="btn" onclick="startCalibration()">Start Calibration</button>
+            <p>We need to learn your head scale.</p>
+            <p>We will ask you to look <b>Left, Right, Up, and Down</b> while we scan your face.</p>
+            <button class="btn" onclick="startCalibration()">Start Camera</button>
         </div>
 
-        <div id="step-calibration" class="hidden" style="width:100%; height:100%;">
-            <div class="video-container">
-                <video id="video-cal"></video>
-                <canvas id="canvas-cal"></canvas>
-                <div id="cal-status" class="overlay-text">Center your face...</div>
-                
-                <div class="calibration-ui">
-                    <div id="chk-center" class="cal-item">Center</div>
-                    <div id="chk-left" class="cal-item">Left</div>
-                    <div id="chk-right" class="cal-item">Right</div>
-                    <div id="chk-up" class="cal-item">Up</div>
-                    <div id="chk-down" class="cal-item">Down</div>
-                </div>
+        <div id="ui-calibration" class="ui-layer hidden transparent-mode">
+            <div class="status-pill" id="cal-instruction">Center your face...</div>
+            
+            <div class="calibration-status">
+                <div id="chk-center" class="cal-item">Center</div>
+                <div id="chk-left" class="cal-item">Left</div>
+                <div id="chk-right" class="cal-item">Right</div>
+                <div id="chk-up" class="cal-item">Up</div>
+                <div id="chk-down" class="cal-item">Down</div>
             </div>
         </div>
 
-        <div id="step-instruction" class="hidden">
+        <div id="ui-instruction" class="ui-layer hidden">
             <h1>Calibration Complete!</h1>
-            <div class="illustration">[Illustration: Fingers on Tragus]</div>
-            <p>Now we are ready to measure.</p>
-            <p>Place your <b>index fingers</b> on your left and right <b>Tragus</b> (ears).</p>
-            <button class="btn" onclick="startMeasurementPhase()">Start Measuring</button>
+            <p style="background: rgba(255,255,255,0.1); padding: 20px; border-radius: 12px;">
+                👆 <b>Instructions:</b><br><br>
+                1. Point your index fingers.<br>
+                2. Place fingertips on your <b>Tragus</b> (the small flap of your ear).<br>
+                3. Hold still.
+            </p>
+            <button class="btn" onclick="startMeasurement()">Start Measuring</button>
         </div>
 
-        <div id="step-measure" class="hidden" style="width:100%; height:100%;">
-            <div class="video-container">
-                <div id="measure-container-placeholder" style="width:100%; height:100%;"></div>
-                <div id="measure-status" class="overlay-text">Align with ghost...</div>
-            </div>
+        <div id="ui-measuring" class="ui-layer hidden transparent-mode">
+            <div class="status-pill" id="measure-status">Align face with ghost...</div>
         </div>
 
-        <div id="step-result" class="hidden">
+        <div id="ui-result" class="ui-layer hidden">
             <h1>Measurement Complete</h1>
-            <p>Your calibrated Head Breadth is:</p>
-            <h2 style="font-size: 4rem; color: #007bff; margin: 0;"><span id="result-val">0</span> mm</h2>
+            <p>Your Head Breadth is:</p>
+            <h2 style="font-size: 5rem; color: #00BFFF; margin: 0; text-shadow: 0 0 20px rgba(0,191,255,0.5);">
+                <span id="result-val">0</span> mm
+            </h2>
             <br>
             <button class="btn" onclick="location.reload()">Restart</button>
         </div>
@@ -125,272 +143,266 @@
     </div>
 
 <script>
-    // --- Configuration ---
-    // Average human iris diameter is ~11.7mm. We use this as our "known object"
-    // to solve the scale ambiguity in SfM.
-    const REAL_IRIS_SIZE_MM = 11.7; 
+    // --- Config & State ---
+    const REAL_IRIS_SIZE_MM = 11.7; // Biological constant
+    let appState = 'idle'; // idle, calibrating, instruction, measuring, done
     
-    // State
-    let currentStep = 'intro';
-    let calData = {
-        center: false, left: false, right: false, up: false, down: false,
-        scaleSamples: [] // Stores calculated mmPerPixel values
-    };
-    let finalMmPerPixel = 0;
-    let measureBuffer = [];
-    
-    // DOM
-    const videoElement = document.getElementById('video-cal');
-    const canvasElement = document.getElementById('canvas-cal');
-    const canvasCtx = canvasElement.getContext('2d');
-    
-    // MediaPipe Objects
-    let faceMesh, hands, camera;
+    // Calibration State
+    let calData = { center:false, left:false, right:false, up:false, down:false, samples:[] };
+    let mmPerPixel = 0;
 
-    // --- Workflow Functions ---
+    // Measurement State
+    let measureBuffer = [];
+
+    // DOM Elements
+    const videoElement = document.getElementById('input_video');
+    const canvasElement = document.getElementById('output_canvas');
+    const canvasCtx = canvasElement.getContext('2d');
+
+    // UI Elements
+    const uiIntro = document.getElementById('ui-intro');
+    const uiCal = document.getElementById('ui-calibration');
+    const uiInstr = document.getElementById('ui-instruction');
+    const uiMeasure = document.getElementById('ui-measuring');
+    const uiResult = document.getElementById('ui-result');
+    const calInstruction = document.getElementById('cal-instruction');
+    const measureStatus = document.getElementById('measure-status');
+
+    // --- Workflow Control ---
+
+    function switchUI(targetUI) {
+        [uiIntro, uiCal, uiInstr, uiMeasure, uiResult].forEach(ui => ui.classList.add('hidden'));
+        targetUI.classList.remove('hidden');
+    }
 
     function startCalibration() {
-        document.getElementById('step-intro').classList.add('hidden');
-        document.getElementById('step-calibration').classList.remove('hidden');
-        currentStep = 'calibration';
+        appState = 'calibrating';
+        switchUI(uiCal);
         initComputerVision();
     }
 
     function finishCalibration() {
-        // Calculate the median scale factor from all samples for robustness
-        calData.scaleSamples.sort((a, b) => a - b);
-        const mid = Math.floor(calData.scaleSamples.length / 2);
-        finalMmPerPixel = calData.scaleSamples[mid];
-
-        console.log("Calibration Final Scale (mm/px):", finalMmPerPixel);
-
-        currentStep = 'instruction';
-        document.getElementById('step-calibration').classList.add('hidden');
-        document.getElementById('step-instruction').classList.remove('hidden');
+        // Compute Median Scale
+        calData.samples.sort((a,b) => a-b);
+        mmPerPixel = calData.samples[Math.floor(calData.samples.length/2)];
+        console.log("Calibrated Scale:", mmPerPixel);
+        
+        appState = 'instruction';
+        switchUI(uiInstr);
     }
 
-    function startMeasurementPhase() {
-        document.getElementById('step-instruction').classList.add('hidden');
-        document.getElementById('step-measure').classList.remove('hidden');
-        
-        // Move video/canvas to the measure container visually
-        const container = document.getElementById('measure-container-placeholder');
-        container.appendChild(videoElement);
-        container.appendChild(canvasElement);
-        // Re-append overlays
-        container.appendChild(document.getElementById('measure-status'));
-        
-        currentStep = 'measuring';
+    function startMeasurement() {
+        appState = 'measuring';
+        switchUI(uiMeasure);
     }
 
     function showResult(mm) {
-        currentStep = 'done';
+        appState = 'done';
         document.getElementById('result-val').innerText = Math.round(mm);
-        document.getElementById('step-measure').classList.add('hidden');
-        document.getElementById('step-result').classList.remove('hidden');
-        if(camera) camera.stop();
+        switchUI(uiResult);
+        // Optional: stop camera
+        // videoElement.srcObject.getTracks().forEach(t=>t.stop()); 
     }
 
-    // --- Computer Vision Logic ---
+    // --- CV Setup ---
 
     function initComputerVision() {
-        faceMesh = new FaceMesh({locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/${file}`});
-        faceMesh.setOptions({ maxNumFaces: 1, refineLandmarks: true, minDetectionConfidence: 0.5, minTrackingConfidence: 0.5 });
+        const faceMesh = new FaceMesh({locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/${file}`});
+        faceMesh.setOptions({maxNumFaces: 1, refineLandmarks: true, minDetectionConfidence: 0.5, minTrackingConfidence: 0.5});
         faceMesh.onResults(onFaceResults);
 
-        hands = new Hands({locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`});
-        hands.setOptions({ maxNumHands: 2, modelComplexity: 1, minDetectionConfidence: 0.5, minTrackingConfidence: 0.5 });
+        const hands = new Hands({locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`});
+        hands.setOptions({maxNumHands: 2, modelComplexity: 1, minDetectionConfidence: 0.5, minTrackingConfidence: 0.5});
         hands.onResults(onHandResults);
 
-        camera = new Camera(videoElement, {
+        const camera = new Camera(videoElement, {
             onFrame: async () => {
-                // Send to both models
                 await faceMesh.send({image: videoElement});
-                if(currentStep === 'measuring') await hands.send({image: videoElement});
+                // Only run hand tracking if measuring to save performance
+                if(appState === 'measuring') await hands.send({image: videoElement});
             },
             width: 1280, height: 720
         });
         camera.start();
     }
 
-    // Global variable to store face landmarks for the hand loop to access
-    let lastFaceLandmarks = null;
+    // Global variable for hand loop to access face data
+    let currentFaceLandmarks = null; 
 
     function onFaceResults(results) {
+        // Always clear canvas at start of frame
         canvasElement.width = videoElement.videoWidth;
         canvasElement.height = videoElement.videoHeight;
+        const w = canvasElement.width;
+        const h = canvasElement.height;
         canvasCtx.save();
-        
-        // Only clear canvas if we aren't waiting for hands (hands will clear it otherwise)
-        if(currentStep === 'calibration') canvasCtx.clearRect(0, 0, canvasElement.width, canvasElement.height);
+        canvasCtx.clearRect(0, 0, w, h);
 
         if (results.multiFaceLandmarks && results.multiFaceLandmarks.length > 0) {
-            lastFaceLandmarks = results.multiFaceLandmarks[0];
-            const landmarks = lastFaceLandmarks;
-            const w = canvasElement.width;
-            const h = canvasElement.height;
+            currentFaceLandmarks = results.multiFaceLandmarks[0];
+            const lm = currentFaceLandmarks;
 
-            // 1. Calculate Head Pose (Yaw/Pitch)
-            // Nose(1), LeftCheek(234), RightCheek(454), Forehead(10), Chin(152)
-            const nose = landmarks[1];
-            const leftCheek = landmarks[234];
-            const rightCheek = landmarks[454];
-            const forehead = landmarks[10];
-            const chin = landmarks[152];
-
-            // Yaw: Ratio of nose to cheeks
-            const distL = Math.abs(nose.x - leftCheek.x);
-            const distR = Math.abs(nose.x - rightCheek.x);
-            const yaw = (distL - distR) / (distL + distR); // approx -1 (left) to 1 (right)
-
-            // Pitch: Ratio of forehead-nose vs nose-chin
-            const distTop = Math.abs(forehead.y - nose.y);
-            const distBot = Math.abs(nose.y - chin.y);
-            const pitch = distTop / distBot; // < 0.6 Looking Up, > 1.0 Looking Down (approx)
-
-            // 2. Calculate Scale (Iris Diameter)
-            // Left Iris Horizontal: 474--476. Right Iris Horizontal: 469--471
-            const li1 = landmarks[474]; const li2 = landmarks[476];
-            const ri1 = landmarks[469]; const ri2 = landmarks[471];
-            
-            const lDist = Math.hypot((li1.x-li2.x)*w, (li1.y-li2.y)*h);
-            const rDist = Math.hypot((ri1.x-ri2.x)*w, (ri1.y-ri2.y)*h);
-            const avgIrisPx = (lDist + rDist) / 2;
-            
-            // Calculate mm per pixel based on 11.7mm iris
+            // 1. Calculate Scale (Iris)
+            // Left Iris: 474-476, Right Iris: 469-471
+            const getDist = (i1, i2) => Math.hypot((lm[i1].x-lm[i2].x)*w, (lm[i1].y-lm[i2].y)*h);
+            const avgIrisPx = (getDist(474,476) + getDist(469,471)) / 2;
             const currentScale = REAL_IRIS_SIZE_MM / avgIrisPx;
 
-            if (currentStep === 'calibration') {
-                processCalibrationStep(yaw, pitch, currentScale);
-            } else if (currentStep === 'measuring') {
-                drawGhostOverlay(landmarks, w, h);
+            if(appState === 'calibrating') {
+                runCalibrationLogic(lm, currentScale, w, h);
+            } else if (appState === 'measuring') {
+                drawGhostOverlay(lm, w, h);
             }
         }
         
-        // If measuring, hands will draw. If calibration, restore here.
-        if(currentStep === 'calibration') canvasCtx.restore();
+        // If measuring, we wait for hand results to restore(). 
+        // If NOT measuring, restore immediately.
+        if(appState !== 'measuring') canvasCtx.restore();
     }
 
     function onHandResults(results) {
-        if (currentStep !== 'measuring') return;
+        if(appState !== 'measuring') return;
         
-        // We need to clear canvas inside this loop for the measuring phase
-        // Note: Ideally we compose Face+Hands in one pass, but for simplicity:
-        // We assume Face ran first and set `lastFaceLandmarks`.
-        
-        if (!lastFaceLandmarks) { canvasCtx.restore(); return; }
+        // Face landmarks are required for the ghost overlay logic
+        if(!currentFaceLandmarks) { canvasCtx.restore(); return; }
 
-        // Draw Hands
-        if (results.multiHandLandmarks && results.multiHandLandmarks.length == 2) {
-            const indexTips = results.multiHandLandmarks.map(hl => hl[8]);
+        if (results.multiHandLandmarks && results.multiHandLandmarks.length === 2) {
+            const indexTips = results.multiHandLandmarks.map(h => h[8]);
             
+            // Draw Fingertips
+            indexTips.forEach(tip => {
+                canvasCtx.beginPath();
+                canvasCtx.arc(tip.x * canvasElement.width, tip.y * canvasElement.height, 10, 0, 2*Math.PI);
+                canvasCtx.fillStyle = '#32CD32'; // Lime
+                canvasCtx.fill();
+            });
+
+            // Calculate Distance
             const t1 = indexTips[0]; const t2 = indexTips[1];
             const dx = (t1.x - t2.x) * canvasElement.width;
             const dy = (t1.y - t2.y) * canvasElement.height;
             const pxDist = Math.sqrt(dx*dx + dy*dy);
+            const mmDist = pxDist * mmPerPixel;
 
-            // Use the calibrated scale
-            const mmDist = pxDist * finalMmPerPixel;
-
-            // Draw line between fingers
+            // Draw Line
             canvasCtx.beginPath();
             canvasCtx.moveTo(t1.x*canvasElement.width, t1.y*canvasElement.height);
             canvasCtx.lineTo(t2.x*canvasElement.width, t2.y*canvasElement.height);
-            canvasCtx.strokeStyle = 'lime';
+            canvasCtx.strokeStyle = '#32CD32';
             canvasCtx.lineWidth = 4;
             canvasCtx.stroke();
 
-            handleMeasurementStability(mmDist);
+            // Check Stability
+            measureBuffer.push(mmDist);
+            if(measureBuffer.length > 30) measureBuffer.shift();
+            
+            const mean = measureBuffer.reduce((a,b)=>a+b)/measureBuffer.length;
+            const variance = measureBuffer.reduce((a,b)=>a+Math.pow(b-mean,2),0)/measureBuffer.length;
+            
+            measureStatus.innerText = `Reading: ${Math.round(mean)} mm`;
+            
+            if(measureBuffer.length === 30 && variance < 5.0) {
+                showResult(mean);
+            }
         } else {
-            document.getElementById('measure-status').innerText = "Place index fingers on ears";
+            measureStatus.innerText = "Place BOTH index fingers on ears";
             measureBuffer = [];
         }
+
         canvasCtx.restore();
     }
 
+
     // --- Logic Helpers ---
 
-    function processCalibrationStep(yaw, pitch, scale) {
-        const status = document.getElementById('cal-status');
-        const THRESH_YAW = 0.4; 
+    function runCalibrationLogic(lm, scale, w, h) {
+        // Collect Scale Samples
+        if(scale > 0 && scale < 5) calData.samples.push(scale);
+
+        // Calculate Head Pose
+        const nose = lm[1];
+        const leftCheek = lm[234];
+        const rightCheek = lm[454];
+        const forehead = lm[10];
+        const chin = lm[152];
+
+        // Yaw (Left/Right)
+        const dL = Math.abs(nose.x - leftCheek.x);
+        const dR = Math.abs(nose.x - rightCheek.x);
+        const yaw = (dL - dR) / (dL + dR); // approx -1 to 1
+
+        // Pitch (Up/Down)
+        const dTop = Math.abs(forehead.y - nose.y);
+        const dBot = Math.abs(nose.y - chin.y);
+        const pitch = dTop / dBot; 
+
+        // Draw Helper Points
+        drawDot(nose, 'white', w, h);
         
-        // Store scale sample if face is reasonably detectable
-        if (scale > 0 && scale < 5.0) calData.scaleSamples.push(scale);
-
-        // Check poses
-        let activeAction = "";
-
-        if (Math.abs(yaw) < 0.1 && pitch > 0.7 && pitch < 0.9) {
-            calData.center = true;
-            markDone('chk-center');
-            activeAction = "Center Good.";
+        // State Machine
+        let msg = "Look ";
+        const YAW_THRESH = 0.4;
+        
+        if (Math.abs(yaw) < 0.15 && pitch > 0.65 && pitch < 0.95) {
+            calData.center = true; document.getElementById('chk-center').classList.add('done');
+            msg = "Great! Now look Left/Right/Up/Down";
         }
-        else if (yaw < -THRESH_YAW) { // Look Right (Mirroring confuses terms, this is Yaw Left)
-            calData.right = true; // Video is mirrored? usually yaw < 0 is looking User's Right
-            markDone('chk-right');
-            activeAction = "Right Good.";
+        if (yaw < -YAW_THRESH) {
+            calData.right = true; document.getElementById('chk-right').classList.add('done'); // Mirrored logic
         }
-        else if (yaw > THRESH_YAW) {
-            calData.left = true;
-            markDone('chk-left');
-            activeAction = "Left Good.";
+        if (yaw > YAW_THRESH) {
+            calData.left = true; document.getElementById('chk-left').classList.add('done');
         }
-        else if (pitch < 0.65) {
-            calData.up = true;
-            markDone('chk-up');
-            activeAction = "Up Good.";
+        if (pitch < 0.60) {
+            calData.up = true; document.getElementById('chk-up').classList.add('done');
         }
-        else if (pitch > 0.95) {
-            calData.down = true;
-            markDone('chk-down');
-            activeAction = "Down Good.";
-        } else {
-            activeAction = "Turn head: Left, Right, Up, Down";
+        if (pitch > 1.0) {
+            calData.down = true; document.getElementById('chk-down').classList.add('done');
         }
 
-        status.innerText = activeAction;
+        calInstruction.innerText = msg;
 
-        // Check if all done
+        // Finish?
         if (calData.center && calData.left && calData.right && calData.up && calData.down) {
-            // Slight delay to ensure user sees all green
-            setTimeout(finishCalibration, 500);
+            calInstruction.innerText = "Done! Computing...";
+            calInstruction.style.background = "#32CD32";
+            setTimeout(finishCalibration, 1000);
         }
     }
 
-    function markDone(id) {
-        document.getElementById(id).classList.add('done');
-    }
+    function drawGhostOverlay(lm, w, h) {
+        // Draw Ear Targets
+        const earY = lm[234].y * h + (h*0.05); // slightly lower than cheek
+        const leftEarX = lm[234].x * w - (w*0.08); // Outward from cheek
+        const rightEarX = lm[454].x * w + (w*0.08);
 
-    function drawGhostOverlay(landmarks, w, h) {
-        // Simple Ghost Overlay reusing face landmarks to draw "Targets"
-        const leftEarX = landmarks[234].x * w - 30; // Approx offset
-        const rightEarX = landmarks[454].x * w + 30;
-        const earY = landmarks[234].y * h;
+        canvasCtx.strokeStyle = 'rgba(255,255,255,0.5)';
+        canvasCtx.lineWidth = 2;
+        canvasCtx.setLineDash([5, 5]);
 
-        canvasCtx.fillStyle = 'rgba(255,255,255,0.5)';
+        // Draw Circles
         canvasCtx.beginPath();
-        canvasCtx.arc(leftEarX, earY, 20, 0, 2*Math.PI);
-        canvasCtx.arc(rightEarX, earY, 20, 0, 2*Math.PI);
-        canvasCtx.fill();
-        canvasCtx.strokeStyle = 'white';
+        canvasCtx.arc(leftEarX, earY, 25, 0, 2*Math.PI);
         canvasCtx.stroke();
+        
+        canvasCtx.beginPath();
+        canvasCtx.arc(rightEarX, earY, 25, 0, 2*Math.PI);
+        canvasCtx.stroke();
+
+        canvasCtx.setLineDash([]);
+        
+        // Draw Text Labels
+        canvasCtx.fillStyle = "white";
+        canvasCtx.font = "16px Arial";
+        canvasCtx.fillText("L Ear", leftEarX - 20, earY - 35);
+        canvasCtx.fillText("R Ear", rightEarX - 20, earY - 35);
     }
 
-    function handleMeasurementStability(mm) {
-        measureBuffer.push(mm);
-        if (measureBuffer.length > 30) measureBuffer.shift();
-
-        if (measureBuffer.length === 30) {
-            // Calc variance
-            const mean = measureBuffer.reduce((a,b)=>a+b)/30;
-            const variance = measureBuffer.reduce((a,b)=>a + Math.pow(b-mean,2), 0)/30;
-            
-            document.getElementById('measure-status').innerText = `Measuring: ${Math.round(mean)}mm`;
-
-            if (variance < 3.0) {
-                showResult(mean);
-            }
-        }
+    function drawDot(pt, color, w, h) {
+        canvasCtx.beginPath();
+        canvasCtx.arc(pt.x*w, pt.y*h, 4, 0, 2*Math.PI);
+        canvasCtx.fillStyle = color;
+        canvasCtx.fill();
     }
 
 </script>

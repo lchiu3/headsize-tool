@@ -3,248 +3,279 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Headphone Sizing - Perspective Corrected</title>
+    <title>High-Accuracy Head Sizing</title>
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/control_utils/control_utils.js" crossorigin="anonymous"></script>
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js" crossorigin="anonymous"></script>
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/face_mesh.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js" crossorigin="anonymous"></script>
     
     <style>
-        body { background-color: #1a1a1a; color: white; font-family: sans-serif; margin: 0; height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; }
-        .container { position: relative; width: 100%; max-width: 960px; aspect-ratio: 16/9; background: black; border-radius: 16px; overflow: hidden; display: flex; }
-        .viewport { position: absolute; top: 0; left: 0; width: 100%; height: 100%; }
-        video { width: 100%; height: 100%; object-fit: cover; transform: scaleX(-1); }
-        canvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; transform: scaleX(-1); }
-        .ui-overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 10; pointer-events: none; display: flex; flex-direction: column; justify-content: space-between; padding: 20px; box-sizing: border-box; }
-        .top-bar { background: rgba(0,0,0,0.6); padding: 15px 30px; border-radius: 30px; text-align: center; align-self: center; border: 1px solid rgba(255,255,255,0.1); }
-        .guide-box { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 280px; height: 380px; border: 2px dashed rgba(255,255,255,0.3); border-radius: 140px; }
-        .progress-dots { display: flex; gap: 10px; margin-top: 10px; justify-content: center;}
-        .dot { width: 12px; height: 12px; border-radius: 50%; background: #444; border: 1px solid #666; transition: all 0.3s; }
-        .dot.active { background: #007bff; box-shadow: 0 0 10px #007bff; border-color: #fff; }
-        .dot.success { background: #28a745; box-shadow: 0 0 10px #28a745; border-color: #fff; }
-        .btn { background: #007bff; color: white; border: none; padding: 12px 25px; border-radius: 50px; font-weight: 600; cursor: pointer; pointer-events: auto; }
-        .hidden { display: none !important; }
+        body {
+            background-color: #1a1a1a; color: white; font-family: 'Segoe UI', sans-serif;
+            margin: 0; height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center;
+        }
+
+        .container {
+            position: relative; width: 100%; max-width: 960px; aspect-ratio: 16/9;
+            background: black; border-radius: 16px; overflow: hidden;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.8);
+        }
+
+        video { 
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%; 
+            object-fit: cover; transform: scaleX(-1);
+        }
+        canvas { 
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%; 
+            transform: scaleX(-1);
+        }
+
+        /* The Sweet Spot Guide */
+        .guide-overlay {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            pointer-events: none; z-index: 10;
+            display: flex; align-items: center; justify-content: center;
+        }
+
+        .face-oval {
+            width: 220px; height: 300px; /* Constrained Size */
+            border: 4px dashed rgba(255, 255, 255, 0.3);
+            border-radius: 50% 50% 50% 50% / 60% 60% 40% 40%;
+            transition: all 0.3s ease;
+            box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.7); /* Dim the rest of screen */
+        }
         
-        /* New Result UI */
-        .result-box { background: rgba(20, 20, 20, 0.95); padding: 40px; border-radius: 20px; text-align: center; border: 1px solid #333; }
-        .result-value { font-size: 5rem; color: #28a745; font-weight: bold; margin: 0; }
-        .fine-tune { margin-top: 20px; display: flex; gap: 10px; justify-content: center; align-items: center; font-size: 0.9rem; color: #aaa; }
+        .face-oval.good { border-color: #32CD32; border-style: solid; box-shadow: 0 0 20px #32CD32, 0 0 0 9999px rgba(0,0,0,0.8); }
+        .face-oval.bad { border-color: #ff4757; }
+
+        /* Status UI */
+        .status-pill {
+            position: absolute; top: 30px; left: 50%; transform: translateX(-50%);
+            background: rgba(0,0,0,0.8); padding: 10px 30px; border-radius: 30px;
+            font-size: 1.2rem; font-weight: bold; border: 1px solid #444; z-index: 20;
+            white-space: nowrap; transition: background 0.3s;
+        }
+        .status-pill.success { background: #32CD32; color: black; }
+        .status-pill.warning { background: #ff4757; }
+
+        /* Progress Bar */
+        .scan-progress {
+            position: absolute; bottom: 40px; left: 50%; transform: translateX(-50%);
+            width: 300px; height: 10px; background: #333; border-radius: 10px;
+            overflow: hidden; z-index: 20; display: none;
+        }
+        .scan-bar { width: 0%; height: 100%; background: #32CD32; transition: width 0.1s linear; }
+
+        /* Result Screen */
+        .result-screen {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(10,10,10,0.95); z-index: 50;
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+        }
+        .hidden { display: none !important; }
+        .btn { padding: 15px 30px; font-size: 1.1rem; background: #007bff; color: white; border:none; border-radius:30px; cursor: pointer; margin-top: 20px;}
+
     </style>
 </head>
 <body>
 
 <div class="container">
-    <div class="viewport">
-        <video id="input_video" playsinline></video>
-        <canvas id="output_canvas"></canvas>
+    <video id="input_video" playsinline></video>
+    <canvas id="output_canvas"></canvas>
+    
+    <div id="guide" class="guide-overlay">
+        <div id="oval" class="face-oval"></div>
     </div>
 
-    <div id="ui-intro" class="ui-overlay" style="background: rgba(0,0,0,0.85); pointer-events: auto; align-items: center; justify-content: center;">
-        <h1 style="margin-bottom: 1rem;">Head Measurement V2</h1>
-        <p style="text-align: center; margin-bottom: 2rem; max-width: 500px;">
-            This version corrects for camera distortion.<br><br>
-            Slowly turn your head <b>Left, Right, Up, Down</b>.
+    <div id="status" class="status-pill">Initializing...</div>
+    
+    <div id="progress-container" class="scan-progress">
+        <div id="bar" class="scan-bar"></div>
+    </div>
+
+    <div id="result-ui" class="result-screen hidden">
+        <h1 style="color:#888; font-size:1rem; text-transform:uppercase;">Measurement Complete</h1>
+        <div style="font-size: 5rem; font-weight: bold; color: #32CD32;"><span id="final-val">0</span> mm</div>
+        <p style="color:#aaa; max-width:400px; text-align:center;">
+            This measurement was taken from a perspective-corrected distance using multi-frame averaging.
         </p>
-        <button class="btn" onclick="startApp()">Start Calibration</button>
-    </div>
-
-    <div id="ui-active" class="ui-overlay hidden">
-        <div class="top-bar">
-            <h2 id="instruction-text" style="margin:0; font-size:1.2rem;">Center your face</h2>
-        </div>
-        <div class="guide-box"></div>
-        <div style="position: absolute; bottom: 50px; left: 0; width: 100%; text-align: center;">
-            <div class="progress-dots">
-                <div class="dot" id="dot-left"></div>
-                <div class="dot" id="dot-center"></div>
-                <div class="dot" id="dot-right"></div>
-                <div class="dot" id="dot-up"></div>
-                <div class="dot" id="dot-down"></div>
-            </div>
-        </div>
-    </div>
-
-    <div id="ui-result" class="ui-overlay hidden" style="pointer-events: auto; align-items: center; justify-content: center;">
-        <div class="result-box">
-            <span style="text-transform: uppercase; letter-spacing: 1px; color: #888;">Head Width</span>
-            <div class="result-value"><span id="final-width">0</span> mm</div>
-            <p style="color: #666; margin-top: -10px; font-size: 0.9rem;">Includes depth compensation</p>
-            
-            <div class="fine-tune">
-                <span>Adjust Estimate:</span>
-                <button class="btn" style="padding: 5px 15px; font-size: 1rem; background: #444;" onclick="adjust(-2)">-</button>
-                <button class="btn" style="padding: 5px 15px; font-size: 1rem; background: #444;" onclick="adjust(2)">+</button>
-            </div>
-            <br>
-            <button class="btn" onclick="location.reload()">Measure Again</button>
-        </div>
+        <button class="btn" onclick="location.reload()">Measure Again</button>
     </div>
 </div>
 
 <script>
-    /* CONFIGURATION 
-       -----------------------------------------------------------
-       PERSPECTIVE_FACTOR: 
-       We multiply the raw result by this to account for the ears being 
-       further back than the eyes (where the scale is derived).
-       1.12 = +12% size boost (Typical for laptop webcams at ~50cm distance)
-    */
-    const PERSPECTIVE_FACTOR = 1.12; 
-    const IRIS_REF_MM = 11.7;
-
-    let state = {
-        step: 'intro',
-        buckets: { center:[], left:[], right:[], up:[], down:[] },
-        finalVal: 0
-    };
-
+    /* CONFIG */
+    const IRIS_REAL_MM = 11.7; 
+    const SCAN_FRAMES = 60; // 60 Frames (~2 seconds) of perfect stability
+    
+    // Elements
     const videoElement = document.getElementById('input_video');
     const canvasElement = document.getElementById('output_canvas');
     const canvasCtx = canvasElement.getContext('2d');
-    const uiIntro = document.getElementById('ui-intro');
-    const uiActive = document.getElementById('ui-active');
-    const uiResult = document.getElementById('ui-result');
-    const instrText = document.getElementById('instruction-text');
+    const statusEl = document.getElementById('status');
+    const ovalEl = document.getElementById('oval');
+    const barEl = document.getElementById('bar');
+    const progContainer = document.getElementById('progress-container');
+    const resUI = document.getElementById('result-ui');
 
-    // Setup Face Mesh
+    let state = 'align'; // align, measure, done
+    let buffer = [];
+
+    // --- CV Setup ---
     const faceMesh = new FaceMesh({locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/${file}`});
-    faceMesh.setOptions({ maxNumFaces: 1, refineLandmarks: true, minDetectionConfidence: 0.7, minTrackingConfidence: 0.7 });
-    faceMesh.onResults(onResults);
+    faceMesh.setOptions({maxNumFaces: 1, refineLandmarks: true, minDetectionConfidence: 0.7});
+    faceMesh.onResults(onFaceResults);
+
+    const hands = new Hands({locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`});
+    hands.setOptions({maxNumHands: 2, modelComplexity: 1, minDetectionConfidence: 0.7});
+    hands.onResults(onHandResults);
 
     const camera = new Camera(videoElement, {
-        onFrame: async () => { await faceMesh.send({image: videoElement}); },
+        onFrame: async () => {
+            await faceMesh.send({image: videoElement});
+            await hands.send({image: videoElement});
+        },
         width: 1280, height: 720
     });
+    camera.start();
 
-    function startApp() {
-        uiIntro.classList.add('hidden');
-        uiActive.classList.remove('hidden');
-        state.step = 'scanning';
-        camera.start();
-    }
+    // Globals to sync Face and Hands
+    let faceData = null;
 
-    function onResults(results) {
+    function onFaceResults(results) {
+        // Reset canvas
         canvasElement.width = videoElement.videoWidth;
         canvasElement.height = videoElement.videoHeight;
         canvasCtx.clearRect(0, 0, canvasElement.width, canvasElement.height);
 
-        if (!results.multiFaceLandmarks || results.multiFaceLandmarks.length === 0) return;
-        
-        const landmarks = results.multiFaceLandmarks[0];
-        const w = canvasElement.width;
-        const h = canvasElement.height;
-
-        // 1. Calculate Pose (Yaw/Pitch)
-        const nose = landmarks[1];
-        const leftEar = landmarks[234];  // Tragion Left
-        const rightEar = landmarks[454]; // Tragion Right
-        
-        // Yaw Estimation
-        const midX = (leftEar.x + rightEar.x) / 2;
-        const faceW = Math.abs(leftEar.x - rightEar.x);
-        const yaw = (nose.x - midX) / faceW * 2.5; // Approx -1 to 1
-
-        // Pitch Estimation
-        const forehead = landmarks[10];
-        const chin = landmarks[152];
-        const midY = (forehead.y + chin.y) / 2;
-        const faceH = Math.abs(forehead.y - chin.y);
-        const pitch = (nose.y - midY) / faceH * 2.5;
-
-        // Visual Feedback
-        drawConnectors(canvasCtx, landmarks, FACEMESH_TESSELATION, {color: '#C0C0C070', lineWidth: 1});
-        
-        if (state.step === 'scanning') {
-            collectData(landmarks, yaw, pitch, w, h);
+        if (results.multiFaceLandmarks && results.multiFaceLandmarks.length > 0) {
+            faceData = results.multiFaceLandmarks[0];
+            checkAlignment(faceData);
+        } else {
+            faceData = null;
+            updateStatus("No Face Detected", "neutral");
         }
     }
 
-    function collectData(lm, yaw, pitch, w, h) {
-        const TOL = 0.2; // Tolerance
-        const SAMPLES = 20;
+    function onHandResults(results) {
+        if (!faceData || state === 'done') return;
 
-        let bucket = null;
-        if (Math.abs(yaw) < 0.1 && Math.abs(pitch) < 0.1) bucket = 'center';
-        else if (yaw < -0.4) bucket = 'right'; // Mirror
-        else if (yaw > 0.4) bucket = 'left';
-        else if (pitch < -0.3) bucket = 'down'; // Inverted Y
-        else if (pitch > 0.3) bucket = 'up';
+        // Draw Hands (Visual feedback)
+        if (results.multiHandLandmarks) {
+            for (const marks of results.multiHandLandmarks) {
+                drawPoint(marks[8], 'lime'); // Index tip
+            }
+        }
 
-        // UI Updates
-        let status = "Look Center";
-        if (!isFull('center')) status = "Look Center";
-        else if (!isFull('left')) status = "Turn Head Left";
-        else if (!isFull('right')) status = "Turn Head Right";
-        else if (!isFull('up')) status = "Look Up";
-        else if (!isFull('down')) status = "Look Down";
-        else status = "Processing...";
-        
-        instrText.innerText = status;
+        // Logic
+        if (state === 'measure') {
+            if (results.multiHandLandmarks.length === 2) {
+                // Get two index fingers
+                const f1 = results.multiHandLandmarks[0][8];
+                const f2 = results.multiHandLandmarks[1][8];
+                
+                // Calculate Pixel Distance of Fingers
+                const dx = (f1.x - f2.x) * canvasElement.width;
+                const dy = (f1.y - f2.y) * canvasElement.height;
+                const fingerPx = Math.sqrt(dx*dx + dy*dy);
 
-        if (bucket && !isFull(bucket)) {
-            // Highlight dot
-            document.getElementById(`dot-${bucket}`).classList.add('active');
+                // Calculate Scale from Iris (Simultaneous)
+                // Left Iris 474-476
+                const w = canvasElement.width; const h = canvasElement.height;
+                const i1 = faceData[474]; const i2 = faceData[476];
+                const irisPx = Math.hypot((i1.x-i2.x)*w, (i1.y-i2.y)*h);
+                
+                const mmScale = IRIS_REAL_MM / irisPx;
+                const currentMM = fingerPx * mmScale;
 
-            // --- KEY MEASUREMENT LOGIC ---
-            
-            // 1. Iris Size (The Ruler)
-            // Left Iris: 474-476, Right Iris: 469-471
-            const d = (i1, i2) => Math.hypot((lm[i1].x-lm[i2].x)*w, (lm[i1].y-lm[i2].y)*h);
-            const irisPx = (d(474,476) + d(469,471)) / 2;
+                // Accumulate
+                buffer.push(currentMM);
+                
+                // Update UI Progress
+                const pct = (buffer.length / SCAN_FRAMES) * 100;
+                barEl.style.width = pct + "%";
+                updateStatus("Hold Still... Scanning", "success");
 
-            // 2. Head Width (The Object)
-            // Using 234 and 454 (Tragions/Ears) - widest stable points
-            const headPx = Math.hypot((lm[234].x-lm[454].x)*w, (lm[234].y-lm[454].y)*h);
-
-            state.buckets[bucket].push({ iris: irisPx, head: headPx });
-
-            if (isFull(bucket)) {
-                document.getElementById(`dot-${bucket}`).classList.remove('active');
-                document.getElementById(`dot-${bucket}`).classList.add('success');
-                checkDone();
+                if (buffer.length >= SCAN_FRAMES) {
+                    finishMeasurement();
+                }
+            } else {
+                updateStatus("Place BOTH fingers on ears", "warning");
+                resetScan();
             }
         }
     }
 
-    function isFull(b) { return state.buckets[b].length >= 20; }
+    function checkAlignment(landmarks) {
+        if (state !== 'align') return;
 
-    function checkDone() {
-        const b = state.buckets;
-        if (isFull('center') && isFull('left') && isFull('right') && isFull('up') && isFull('down')) {
-            state.step = 'done';
-            computeSize();
+        // Get Face Bounds (Top 10, Bottom 152)
+        const top = landmarks[10].y * canvasElement.height;
+        const bottom = landmarks[152].y * canvasElement.height;
+        const faceH = bottom - top;
+        const screenH = canvasElement.height;
+
+        // The "Sweet Spot" Logic
+        // Face should be roughly 35-45% of screen height
+        // This forces user to be ~60-70cm away (Arm's length)
+        const faceRatio = faceH / screenH;
+
+        if (faceRatio > 0.50) {
+            updateStatus("Too Close! Move Back", "warning");
+            ovalEl.className = "face-oval bad";
+            resetScan();
+        } else if (faceRatio < 0.30) {
+            updateStatus("Too Far! Come Closer", "warning");
+            ovalEl.className = "face-oval bad";
+            resetScan();
+        } else {
+            // Good Distance
+            updateStatus("Perfect Distance. Place Fingers on Ears.", "success");
+            ovalEl.className = "face-oval good";
+            
+            // Auto-switch to measure mode if valid
+            state = 'measure';
+            progContainer.style.display = 'block';
         }
     }
 
-    function computeSize() {
-        // 1. Robust Scale (Median of ALL buckets)
-        let allIris = [];
-        Object.values(state.buckets).forEach(arr => arr.forEach(d => allIris.push(d.iris)));
-        allIris.sort((a,b)=>a-b);
-        const medianIris = allIris[Math.floor(allIris.length/2)];
-        
-        // mm per pixel at eye depth
-        const mmPerPx = IRIS_REF_MM / medianIris;
-
-        // 2. Robust Width (Median of CENTER bucket)
-        let centerWidths = state.buckets.center.map(d => d.head);
-        centerWidths.sort((a,b)=>a-b);
-        const medianHeadPx = centerWidths[Math.floor(centerWidths.length/2)];
-
-        // 3. Calculation with Perspective Compensation
-        const rawMM = medianHeadPx * mmPerPx;
-        const correctedMM = rawMM * PERSPECTIVE_FACTOR; // The Magic Fix
-
-        state.finalVal = Math.round(correctedMM);
-        
-        document.getElementById('final-width').innerText = state.finalVal;
-        uiActive.classList.add('hidden');
-        uiResult.classList.remove('hidden');
+    function resetScan() {
+        if(state === 'measure') state = 'align'; // Fallback if alignment lost
+        buffer = [];
+        barEl.style.width = "0%";
+        progContainer.style.display = 'none';
     }
 
-    function adjust(amount) {
-        state.finalVal += amount;
-        document.getElementById('final-width').innerText = state.finalVal;
+    function finishMeasurement() {
+        state = 'done';
+        
+        // Calculate Median
+        buffer.sort((a,b) => a-b);
+        const result = buffer[Math.floor(buffer.length / 2)];
+        
+        // Display
+        document.getElementById('final-val').innerText = Math.round(result);
+        resUI.classList.remove('hidden');
+    }
+
+    function updateStatus(text, type) {
+        statusEl.innerText = text;
+        statusEl.className = 'status-pill';
+        if (type === 'success') statusEl.classList.add('success');
+        if (type === 'warning') statusEl.classList.add('warning');
+    }
+
+    function drawPoint(pt, color) {
+        const x = pt.x * canvasElement.width;
+        const y = pt.y * canvasElement.height;
+        canvasCtx.beginPath();
+        canvasCtx.arc(x, y, 8, 0, 2*Math.PI);
+        canvasCtx.fillStyle = color;
+        canvasCtx.fill();
+        canvasCtx.strokeStyle = 'white';
+        canvasCtx.lineWidth = 2;
+        canvasCtx.stroke();
     }
 
 </script>

@@ -3,406 +3,417 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Headphone Sizing - Auto Calibrated</title>
+    <title>Professional Head Sizing - 3D Sweep</title>
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/control_utils/control_utils.js" crossorigin="anonymous"></script>
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js" crossorigin="anonymous"></script>
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/face_mesh.js" crossorigin="anonymous"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js" crossorigin="anonymous"></script>
-
+    
     <style>
         body {
-            background-color: #222; /* Dark background for better contrast */
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            display: flex; justify-content: center; align-items: center;
-            height: 100vh; margin: 0; overflow: hidden;
+            background-color: #1a1a1a;
             color: white;
+            font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            margin: 0; height: 100vh;
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
         }
 
-        /* The Main App Container */
-        .app-container {
+        .container {
             position: relative;
-            width: 90%; max-width: 900px;
-            height: 85vh;
+            width: 100%; max-width: 960px;
+            aspect-ratio: 16/9;
             background: black;
-            border-radius: 24px;
+            border-radius: 16px;
             overflow: hidden;
-            box-shadow: 0 20px 50px rgba(0,0,0,0.5);
+            box-shadow: 0 20px 60px rgba(0,0,0,0.6);
+            display: flex;
         }
 
-        /* LAYER 1: The Camera (Always stays in the back) */
-        .video-layer {
+        /* Video Layer */
+        .viewport {
             position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-            z-index: 1; /* Bottom layer */
         }
-        video { position: absolute; width: 100%; height: 100%; object-fit: cover; }
-        canvas { transform: scaleX(-1); position: absolute; width: 100%; height: 100%; object-fit: cover; }
+        video { width: 100%; height: 100%; object-fit: cover; transform: scaleX(-1); } /* Mirror */
+        canvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; transform: scaleX(-1); }
 
-        /* LAYER 2: The UI Overlays (Sit on top of video) */
-        .ui-layer {
+        /* UI Overlay Layer */
+        .ui-overlay {
             position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-            z-index: 10; /* Top layer */
-            display: flex; flex-direction: column; 
-            align-items: center; justify-content: center;
+            z-index: 10;
+            pointer-events: none; /* Let clicks pass through */
+            display: flex; flex-direction: column; justify-content: space-between;
+            padding: 20px; box-sizing: border-box;
+        }
+
+        /* Top Bar: Instructions */
+        .top-bar {
+            background: rgba(0,0,0,0.6);
+            padding: 15px 30px;
+            border-radius: 30px;
             text-align: center;
-            background: rgba(0, 0, 0, 0.6); /* Semi-transparent dimming */
-            transition: opacity 0.3s;
+            align-self: center;
+            backdrop-filter: blur(5px);
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+        h2 { margin: 0; font-size: 1.4rem; color: #fff; }
+        p { margin: 5px 0 0; font-size: 0.95rem; color: #ccc; }
+
+        /* Center: Guides */
+        .guide-box {
+            position: absolute; top: 50%; left: 50%;
+            transform: translate(-50%, -50%);
+            width: 300px; height: 400px;
+            border: 2px dashed rgba(255,255,255,0.3);
+            border-radius: 150px;
+            transition: border-color 0.3s;
+        }
+
+        /* Bottom: Progress/Metrics */
+        .metrics-panel {
+            display: flex; gap: 20px; align-self: center;
+            background: rgba(0,0,0,0.8);
+            padding: 15px; border-radius: 16px;
         }
         
-        /* When "Active" (measuring), we remove the dim background so user sees clearly */
-        .ui-layer.transparent-mode {
-            background: rgba(0,0,0,0); 
-            justify-content: flex-start; /* Move text to top */
-            padding-top: 40px;
+        .metric {
+            display: flex; flex-direction: column; align-items: center; width: 80px;
         }
+        .metric-label { font-size: 0.7rem; color: #888; margin-bottom: 5px; text-transform: uppercase; letter-spacing: 1px;}
+        .metric-val { font-size: 1.2rem; font-weight: bold; font-family: monospace; }
+        
+        /* Progress Indicators */
+        .progress-dots {
+            display: flex; gap: 10px; margin-top: 5px;
+        }
+        .dot {
+            width: 12px; height: 12px; border-radius: 50%;
+            background: #444; border: 1px solid #666;
+            transition: all 0.3s;
+        }
+        .dot.active { background: #007bff; box-shadow: 0 0 10px #007bff; border-color: #fff; }
+        .dot.success { background: #28a745; box-shadow: 0 0 10px #28a745; border-color: #fff; }
+
+        /* Controls */
+        .controls {
+            pointer-events: auto;
+            position: absolute; bottom: 30px; right: 30px;
+        }
+        .btn {
+            background: #007bff; color: white; border: none; padding: 12px 25px;
+            border-radius: 50px; font-weight: 600; cursor: pointer;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+            transition: transform 0.2s;
+        }
+        .btn:hover { transform: scale(1.05); background: #0056b3; }
+        .btn.secondary { background: #444; }
 
         .hidden { display: none !important; }
-
-        h1 { margin-bottom: 0.5rem; font-size: 2rem; text-shadow: 0 2px 4px rgba(0,0,0,0.5); }
-        p { font-size: 1.1rem; max-width: 600px; line-height: 1.6; margin-bottom: 2rem; color: #ddd; }
-
-        .btn {
-            padding: 15px 30px; font-size: 1.2rem; border: none; border-radius: 50px;
-            cursor: pointer; transition: transform 0.2s, background 0.2s;
-            background-color: #007bff; color: white; font-weight: 600;
-            box-shadow: 0 4px 15px rgba(0,123,255,0.4);
-        }
-        .btn:hover { transform: scale(1.05); background-color: #0056b3; }
-
-        /* Calibration Checkboxes */
-        .calibration-status {
-            display: flex; gap: 10px; margin-top: 20px;
-        }
-        .cal-item {
-            background: rgba(255,255,255,0.1); padding: 8px 15px; border-radius: 20px;
-            border: 1px solid rgba(255,255,255,0.3); font-size: 0.9rem;
-        }
-        .cal-item.done { background: #32CD32; border-color: #32CD32; color: black; font-weight: bold;}
-
-        /* Top Status Bar (for measuring) */
-        .status-pill {
-            background: rgba(0,0,0,0.8); padding: 10px 25px; border-radius: 30px;
-            font-size: 1.2rem; border: 1px solid rgba(255,255,255,0.2);
-            margin-top: 10px;
-        }
     </style>
 </head>
 <body>
 
-    <div class="app-container">
-        
-        <div class="video-layer">
-            <video id="input_video"></video>
-            <canvas id="output_canvas"></canvas>
+<div class="container">
+    <div class="viewport">
+        <video id="input_video" playsinline></video>
+        <canvas id="output_canvas"></canvas>
+    </div>
+
+    <div id="ui-intro" class="ui-overlay" style="background: rgba(0,0,0,0.85); pointer-events: auto; align-items: center; justify-content: center;">
+        <h1 style="font-size: 2.5rem; margin-bottom: 1rem;">Head Pose Sweep</h1>
+        <p style="max-width: 500px; text-align: center; margin-bottom: 2rem;">
+            To measure your head size accurately, we will build a 3D model.<br><br>
+            We will ask you to slowly turn your head <b>Left</b>, <b>Right</b>, <b>Up</b>, and <b>Down</b>.<br>
+            Keep your face visible at all times.
+        </p>
+        <button class="btn" onclick="startApp()">Start Calibration</button>
+    </div>
+
+    <div id="ui-active" class="ui-overlay hidden">
+        <div class="top-bar">
+            <h2 id="instruction-text">Center your face</h2>
+            <p id="sub-instruction">Look straight at the camera</p>
         </div>
 
-        <div id="ui-intro" class="ui-layer">
-            <h1>3D Head Calibration</h1>
-            <p>We need to learn your head scale.</p>
-            <p>We will ask you to look <b>Left, Right, Up, and Down</b> while we scan your face.</p>
-            <button class="btn" onclick="startCalibration()">Start Camera</button>
-        </div>
+        <div id="guide" class="guide-box"></div>
 
-        <div id="ui-calibration" class="ui-layer hidden transparent-mode">
-            <div class="status-pill" id="cal-instruction">Center your face...</div>
-            
-            <div class="calibration-status">
-                <div id="chk-center" class="cal-item">Center</div>
-                <div id="chk-left" class="cal-item">Left</div>
-                <div id="chk-right" class="cal-item">Right</div>
-                <div id="chk-up" class="cal-item">Up</div>
-                <div id="chk-down" class="cal-item">Down</div>
+        <div class="metrics-panel">
+            <div class="metric">
+                <span class="metric-label">Yaw</span>
+                <span class="metric-val" id="val-yaw">0°</span>
+            </div>
+            <div class="metric">
+                <span class="metric-label">Pitch</span>
+                <span class="metric-val" id="val-pitch">0°</span>
+            </div>
+            <div class="metric">
+                <span class="metric-label">Quality</span>
+                <span class="metric-val" id="val-quality" style="color: lime">OK</span>
             </div>
         </div>
 
-        <div id="ui-instruction" class="ui-layer hidden">
-            <h1>Calibration Complete!</h1>
-            <p style="background: rgba(255,255,255,0.1); padding: 20px; border-radius: 12px;">
-                👆 <b>Instructions:</b><br><br>
-                1. Point your index fingers.<br>
-                2. Place fingertips on your <b>Tragus</b> (the small flap of your ear).<br>
-                3. Hold still.
-            </p>
-            <button class="btn" onclick="startMeasurement()">Start Measuring</button>
+        <div style="position: absolute; bottom: 100px; left: 50%; transform: translateX(-50%); display: flex; flex-direction: column; align-items: center;">
+            <span class="metric-label">Sweep Progress</span>
+            <div class="progress-dots">
+                <div class="dot" id="dot-left" title="Left"></div>
+                <div class="dot" id="dot-center" title="Center"></div>
+                <div class="dot" id="dot-right" title="Right"></div>
+                <div class="dot" id="dot-up" title="Up"></div>
+                <div class="dot" id="dot-down" title="Down"></div>
+            </div>
         </div>
-
-        <div id="ui-measuring" class="ui-layer hidden transparent-mode">
-            <div class="status-pill" id="measure-status">Align face with ghost...</div>
-        </div>
-
-        <div id="ui-result" class="ui-layer hidden">
-            <h1>Measurement Complete</h1>
-            <p>Your Head Breadth is:</p>
-            <h2 style="font-size: 5rem; color: #00BFFF; margin: 0; text-shadow: 0 0 20px rgba(0,191,255,0.5);">
-                <span id="result-val">0</span> mm
-            </h2>
-            <br>
-            <button class="btn" onclick="location.reload()">Restart</button>
-        </div>
-
     </div>
 
+    <div id="ui-result" class="ui-overlay hidden" style="background: rgba(0,0,0,0.9); pointer-events: auto; align-items: center; justify-content: center;">
+        <span class="metric-label">Calculation Complete</span>
+        <h1 style="font-size: 5rem; margin: 10px 0; color: #28a745;"><span id="final-width">0</span> mm</h1>
+        <p>Estimated Head Width (Bizygomatic Breadth)</p>
+        <br>
+        <button class="btn secondary" onclick="location.reload()">Measure Again</button>
+    </div>
+</div>
+
 <script>
-    // --- Config & State ---
-    const REAL_IRIS_SIZE_MM = 11.7; // Biological constant
-    let appState = 'idle'; // idle, calibrating, instruction, measuring, done
-    
-    // Calibration State
-    let calData = { center:false, left:false, right:false, up:false, down:false, samples:[] };
-    let mmPerPixel = 0;
+    /* ================================================================
+       LOGIC: Multi-Frame Geometry Accumulation & Scale Recovery
+       ================================================================
+    */
 
-    // Measurement State
-    let measureBuffer = [];
+    // --- Configuration ---
+    const TARGET_YAW = 25;   // Degrees to turn L/R
+    const TARGET_PITCH = 15; // Degrees to turn U/D
+    const IRIS_REF_MM = 11.7; // Standard biological constant
 
-    // DOM Elements
+    // --- State ---
+    let state = {
+        step: 'intro', // intro, scanning, done
+        buckets: {
+            center: { complete: false, frames: [] },
+            left:   { complete: false, frames: [] },
+            right:  { complete: false, frames: [] },
+            up:     { complete: false, frames: [] },
+            down:   { complete: false, frames: [] }
+        },
+        currentYaw: 0,
+        currentPitch: 0
+    };
+
+    // --- Elements ---
     const videoElement = document.getElementById('input_video');
     const canvasElement = document.getElementById('output_canvas');
     const canvasCtx = canvasElement.getContext('2d');
-
-    // UI Elements
     const uiIntro = document.getElementById('ui-intro');
-    const uiCal = document.getElementById('ui-calibration');
-    const uiInstr = document.getElementById('ui-instruction');
-    const uiMeasure = document.getElementById('ui-measuring');
+    const uiActive = document.getElementById('ui-active');
     const uiResult = document.getElementById('ui-result');
-    const calInstruction = document.getElementById('cal-instruction');
-    const measureStatus = document.getElementById('measure-status');
+    const instrText = document.getElementById('instruction-text');
+    const subInstr = document.getElementById('sub-instruction');
 
-    // --- Workflow Control ---
+    // --- MediaPipe Setup ---
+    const faceMesh = new FaceMesh({locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/${file}`});
+    faceMesh.setOptions({
+        maxNumFaces: 1,
+        refineLandmarks: true, // Critical for Iris
+        minDetectionConfidence: 0.7,
+        minTrackingConfidence: 0.7
+    });
+    faceMesh.onResults(onResults);
 
-    function switchUI(targetUI) {
-        [uiIntro, uiCal, uiInstr, uiMeasure, uiResult].forEach(ui => ui.classList.add('hidden'));
-        targetUI.classList.remove('hidden');
-    }
+    const camera = new Camera(videoElement, {
+        onFrame: async () => { await faceMesh.send({image: videoElement}); },
+        width: 1280, height: 720
+    });
 
-    function startCalibration() {
-        appState = 'calibrating';
-        switchUI(uiCal);
-        initComputerVision();
-    }
-
-    function finishCalibration() {
-        // Compute Median Scale
-        calData.samples.sort((a,b) => a-b);
-        mmPerPixel = calData.samples[Math.floor(calData.samples.length/2)];
-        console.log("Calibrated Scale:", mmPerPixel);
-        
-        appState = 'instruction';
-        switchUI(uiInstr);
-    }
-
-    function startMeasurement() {
-        appState = 'measuring';
-        switchUI(uiMeasure);
-    }
-
-    function showResult(mm) {
-        appState = 'done';
-        document.getElementById('result-val').innerText = Math.round(mm);
-        switchUI(uiResult);
-        // Optional: stop camera
-        // videoElement.srcObject.getTracks().forEach(t=>t.stop()); 
-    }
-
-    // --- CV Setup ---
-
-    function initComputerVision() {
-        const faceMesh = new FaceMesh({locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/${file}`});
-        faceMesh.setOptions({maxNumFaces: 1, refineLandmarks: true, minDetectionConfidence: 0.5, minTrackingConfidence: 0.5});
-        faceMesh.onResults(onFaceResults);
-
-        const hands = new Hands({locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`});
-        hands.setOptions({maxNumHands: 2, modelComplexity: 1, minDetectionConfidence: 0.5, minTrackingConfidence: 0.5});
-        hands.onResults(onHandResults);
-
-        const camera = new Camera(videoElement, {
-            onFrame: async () => {
-                await faceMesh.send({image: videoElement});
-                // Only run hand tracking if measuring to save performance
-                if(appState === 'measuring') await hands.send({image: videoElement});
-            },
-            width: 1280, height: 720
-        });
+    function startApp() {
+        uiIntro.classList.add('hidden');
+        uiActive.classList.remove('hidden');
+        state.step = 'scanning';
         camera.start();
     }
 
-    // Global variable for hand loop to access face data
-    let currentFaceLandmarks = null; 
-
-    function onFaceResults(results) {
-        // Always clear canvas at start of frame
+    // --- Main Loop ---
+    function onResults(results) {
+        // Clear & Prep Canvas
         canvasElement.width = videoElement.videoWidth;
         canvasElement.height = videoElement.videoHeight;
         const w = canvasElement.width;
         const h = canvasElement.height;
-        canvasCtx.save();
         canvasCtx.clearRect(0, 0, w, h);
 
-        if (results.multiFaceLandmarks && results.multiFaceLandmarks.length > 0) {
-            currentFaceLandmarks = results.multiFaceLandmarks[0];
-            const lm = currentFaceLandmarks;
+        if (!results.multiFaceLandmarks || results.multiFaceLandmarks.length === 0) return;
 
-            // 1. Calculate Scale (Iris)
-            // Left Iris: 474-476, Right Iris: 469-471
-            const getDist = (i1, i2) => Math.hypot((lm[i1].x-lm[i2].x)*w, (lm[i1].y-lm[i2].y)*h);
-            const avgIrisPx = (getDist(474,476) + getDist(469,471)) / 2;
-            const currentScale = REAL_IRIS_SIZE_MM / avgIrisPx;
+        const landmarks = results.multiFaceLandmarks[0];
 
-            if(appState === 'calibrating') {
-                runCalibrationLogic(lm, currentScale, w, h);
-            } else if (appState === 'measuring') {
-                drawGhostOverlay(lm, w, h);
-            }
-        }
+        // 1. POSE ESTIMATION (PnP Lite)
+        // We estimate pose using geometry ratios of the 3D landmarks provided by MediaPipe
+        const nose = landmarks[1];
+        const leftCheek = landmarks[227]; // Tragion/Cheek area
+        const rightCheek = landmarks[447];
+        const forehead = landmarks[10];
+        const chin = landmarks[152];
+
+        // Calculate Yaw (Rotation L/R)
+        // Simple projection ratio: (NoseX - LeftCheekX) vs (RightCheekX - NoseX)
+        // But MediaPipe gives us Z! Let's use 3D geometry.
+        // Actually, simpler geometric heuristic is robust enough for UI guidance:
+        const faceWidth = Math.abs(leftCheek.x - rightCheek.x);
+        const noseOffset = (nose.x - (leftCheek.x + rightCheek.x)/2) / faceWidth;
+        const yawDeg = noseOffset * 90 * 1.5; // Approximate mapping
         
-        // If measuring, we wait for hand results to restore(). 
-        // If NOT measuring, restore immediately.
-        if(appState !== 'measuring') canvasCtx.restore();
+        // Calculate Pitch (Up/Down)
+        const faceHeight = Math.abs(forehead.y - chin.y);
+        const noseYOffset = (nose.y - (forehead.y + chin.y)/2) / faceHeight;
+        const pitchDeg = noseYOffset * -90 * 1.5;
+
+        // Update UI Metrics
+        state.currentYaw = yawDeg;
+        state.currentPitch = pitchDeg;
+        document.getElementById('val-yaw').innerText = Math.round(yawDeg) + "°";
+        document.getElementById('val-pitch').innerText = Math.round(pitchDeg) + "°";
+
+        // Draw Debug Landmarks (Cheekbones & Iris)
+        drawPoint(leftCheek, w, h, 'lime');
+        drawPoint(rightCheek, w, h, 'lime');
+        drawIris(landmarks, w, h);
+
+        // 2. DATA COLLECTION (The Sweep)
+        if (state.step === 'scanning') {
+            processFrame(landmarks, yawDeg, pitchDeg, w, h);
+        }
     }
 
-    function onHandResults(results) {
-        if(appState !== 'measuring') return;
-        
-        // Face landmarks are required for the ghost overlay logic
-        if(!currentFaceLandmarks) { canvasCtx.restore(); return; }
+    // --- Step 4: Multi-frame Accumulation ---
+    function processFrame(landmarks, yaw, pitch, w, h) {
+        // Define tolerance for buckets
+        const TOL = 10; 
+        const MIN_SAMPLES = 15; // Frames needed per bucket
 
-        if (results.multiHandLandmarks && results.multiHandLandmarks.length === 2) {
-            const indexTips = results.multiHandLandmarks.map(h => h[8]);
+        let activeBucket = null;
+        let instruction = "";
+
+        // Determine which bucket fits
+        if (Math.abs(yaw) < 5 && Math.abs(pitch) < 5) {
+            activeBucket = 'center';
+            instruction = "Perfect. Hold Center.";
+        } else if (yaw < -TARGET_YAW + TOL && yaw > -TARGET_YAW - TOL) {
+            activeBucket = 'right'; // Mirrored
+            instruction = "Hold Left Turn.";
+        } else if (yaw > TARGET_YAW - TOL && yaw < TARGET_YAW + TOL) {
+            activeBucket = 'left';
+            instruction = "Hold Right Turn.";
+        } else if (pitch < -TARGET_PITCH + TOL && pitch > -TARGET_PITCH - TOL) {
+            activeBucket = 'down'; // Inverted Y usually
+            instruction = "Hold Looking Up."; // Pitch signs vary, assume standard
+        } else if (pitch > TARGET_PITCH - TOL && pitch < TARGET_PITCH + TOL) {
+            activeBucket = 'up';
+            instruction = "Hold Looking Down.";
+        } else {
+            // Guidance logic
+            if (!state.buckets.center.complete) instruction = "Look at Center";
+            else if (!state.buckets.left.complete) instruction = "Turn Head Left slowly";
+            else if (!state.buckets.right.complete) instruction = "Turn Head Right slowly";
+            else if (!state.buckets.up.complete) instruction = "Look Up";
+            else if (!state.buckets.down.complete) instruction = "Look Down";
+            else instruction = "Processing...";
+        }
+
+        instrText.innerText = instruction;
+
+        // Capture Data if bucket identified
+        if (activeBucket && !state.buckets[activeBucket].complete) {
+            document.getElementById(`dot-${activeBucket}`).classList.add('active');
             
-            // Draw Fingertips
-            indexTips.forEach(tip => {
-                canvasCtx.beginPath();
-                canvasCtx.arc(tip.x * canvasElement.width, tip.y * canvasElement.height, 10, 0, 2*Math.PI);
-                canvasCtx.fillStyle = '#32CD32'; // Lime
-                canvasCtx.fill();
+            // EXTRACT METRICS
+            // 1. Pixel Width of Head (Cheek to Cheek - Zygion)
+            // L: 227 (or 123), R: 447 (or 352). 227/447 are good zygomatic points.
+            const p1 = landmarks[227]; 
+            const p2 = landmarks[447];
+            const pxWidth = Math.hypot((p1.x-p2.x)*w, (p1.y-p2.y)*h);
+
+            // 2. Pixel Diameter of Iris (Scale Reference)
+            // Left Iris: 474-476
+            const i1 = landmarks[474]; const i2 = landmarks[476];
+            const pxIris = Math.hypot((i1.x-i2.x)*w, (i1.y-i2.y)*h);
+
+            state.buckets[activeBucket].frames.push({
+                pxWidth: pxWidth,
+                pxIris: pxIris,
+                yaw: yaw
             });
 
-            // Calculate Distance
-            const t1 = indexTips[0]; const t2 = indexTips[1];
-            const dx = (t1.x - t2.x) * canvasElement.width;
-            const dy = (t1.y - t2.y) * canvasElement.height;
-            const pxDist = Math.sqrt(dx*dx + dy*dy);
-            const mmDist = pxDist * mmPerPixel;
-
-            // Draw Line
-            canvasCtx.beginPath();
-            canvasCtx.moveTo(t1.x*canvasElement.width, t1.y*canvasElement.height);
-            canvasCtx.lineTo(t2.x*canvasElement.width, t2.y*canvasElement.height);
-            canvasCtx.strokeStyle = '#32CD32';
-            canvasCtx.lineWidth = 4;
-            canvasCtx.stroke();
-
-            // Check Stability
-            measureBuffer.push(mmDist);
-            if(measureBuffer.length > 30) measureBuffer.shift();
-            
-            const mean = measureBuffer.reduce((a,b)=>a+b)/measureBuffer.length;
-            const variance = measureBuffer.reduce((a,b)=>a+Math.pow(b-mean,2),0)/measureBuffer.length;
-            
-            measureStatus.innerText = `Reading: ${Math.round(mean)} mm`;
-            
-            if(measureBuffer.length === 30 && variance < 5.0) {
-                showResult(mean);
+            // Check completion
+            if (state.buckets[activeBucket].frames.length >= MIN_SAMPLES) {
+                state.buckets[activeBucket].complete = true;
+                document.getElementById(`dot-${activeBucket}`).classList.remove('active');
+                document.getElementById(`dot-${activeBucket}`).classList.add('success');
+                checkAllDone();
             }
-        } else {
-            measureStatus.innerText = "Place BOTH index fingers on ears";
-            measureBuffer = [];
-        }
-
-        canvasCtx.restore();
-    }
-
-
-    // --- Logic Helpers ---
-
-    function runCalibrationLogic(lm, scale, w, h) {
-        // Collect Scale Samples
-        if(scale > 0 && scale < 5) calData.samples.push(scale);
-
-        // Calculate Head Pose
-        const nose = lm[1];
-        const leftCheek = lm[234];
-        const rightCheek = lm[454];
-        const forehead = lm[10];
-        const chin = lm[152];
-
-        // Yaw (Left/Right)
-        const dL = Math.abs(nose.x - leftCheek.x);
-        const dR = Math.abs(nose.x - rightCheek.x);
-        const yaw = (dL - dR) / (dL + dR); // approx -1 to 1
-
-        // Pitch (Up/Down)
-        const dTop = Math.abs(forehead.y - nose.y);
-        const dBot = Math.abs(nose.y - chin.y);
-        const pitch = dTop / dBot; 
-
-        // Draw Helper Points
-        drawDot(nose, 'white', w, h);
-        
-        // State Machine
-        let msg = "Look ";
-        const YAW_THRESH = 0.4;
-        
-        if (Math.abs(yaw) < 0.15 && pitch > 0.65 && pitch < 0.95) {
-            calData.center = true; document.getElementById('chk-center').classList.add('done');
-            msg = "Great! Now look Left/Right/Up/Down";
-        }
-        if (yaw < -YAW_THRESH) {
-            calData.right = true; document.getElementById('chk-right').classList.add('done'); // Mirrored logic
-        }
-        if (yaw > YAW_THRESH) {
-            calData.left = true; document.getElementById('chk-left').classList.add('done');
-        }
-        if (pitch < 0.60) {
-            calData.up = true; document.getElementById('chk-up').classList.add('done');
-        }
-        if (pitch > 1.0) {
-            calData.down = true; document.getElementById('chk-down').classList.add('done');
-        }
-
-        calInstruction.innerText = msg;
-
-        // Finish?
-        if (calData.center && calData.left && calData.right && calData.up && calData.down) {
-            calInstruction.innerText = "Done! Computing...";
-            calInstruction.style.background = "#32CD32";
-            setTimeout(finishCalibration, 1000);
         }
     }
 
-    function drawGhostOverlay(lm, w, h) {
-        // Draw Ear Targets
-        const earY = lm[234].y * h + (h*0.05); // slightly lower than cheek
-        const leftEarX = lm[234].x * w - (w*0.08); // Outward from cheek
-        const rightEarX = lm[454].x * w + (w*0.08);
-
-        canvasCtx.strokeStyle = 'rgba(255,255,255,0.5)';
-        canvasCtx.lineWidth = 2;
-        canvasCtx.setLineDash([5, 5]);
-
-        // Draw Circles
-        canvasCtx.beginPath();
-        canvasCtx.arc(leftEarX, earY, 25, 0, 2*Math.PI);
-        canvasCtx.stroke();
-        
-        canvasCtx.beginPath();
-        canvasCtx.arc(rightEarX, earY, 25, 0, 2*Math.PI);
-        canvasCtx.stroke();
-
-        canvasCtx.setLineDash([]);
-        
-        // Draw Text Labels
-        canvasCtx.fillStyle = "white";
-        canvasCtx.font = "16px Arial";
-        canvasCtx.fillText("L Ear", leftEarX - 20, earY - 35);
-        canvasCtx.fillText("R Ear", rightEarX - 20, earY - 35);
+    function checkAllDone() {
+        const b = state.buckets;
+        if (b.center.complete && b.left.complete && b.right.complete && b.up.complete && b.down.complete) {
+            state.step = 'done';
+            solveScale();
+        }
     }
 
-    function drawDot(pt, color, w, h) {
+    // --- Step 5: Scale Recovery (The Solver) ---
+    function solveScale() {
+        // We have collected frames. Now we solve.
+        
+        // 1. Calculate Robust Scale Factor (mm per pixel)
+        // We aggregate ALL iris samples from ALL buckets for max stability.
+        let allIrisSamples = [];
+        Object.values(state.buckets).forEach(b => {
+            b.frames.forEach(f => allIrisSamples.push(f.pxIris));
+        });
+        
+        // Median Filter
+        allIrisSamples.sort((a,b) => a-b);
+        const medianIrisPx = allIrisSamples[Math.floor(allIrisSamples.length / 2)];
+        
+        // Calculate mm/pixel
+        const mmPerPixel = IRIS_REF_MM / medianIrisPx;
+
+        // 2. Recover Structural Head Width
+        // The "Center" bucket has the most direct view of head width (Zygions).
+        // However, we can use the Left/Right buckets to verify depth.
+        // For this simplified version, we use the median Center width, 
+        // which is geometrically the projection of the max width when yaw=0.
+        
+        let centerWidths = state.buckets.center.frames.map(f => f.pxWidth);
+        centerWidths.sort((a,b) => a-b);
+        const medianWidthPx = centerWidths[Math.floor(centerWidths.length / 2)];
+
+        // 3. Final Calculation
+        // Head Width (mm) = Pixel Width * Scale Factor
+        const headWidthMM = medianWidthPx * mmPerPixel;
+
+        console.log("Solver Report:");
+        console.log("Median Iris Px:", medianIrisPx);
+        console.log("Scale (mm/px):", mmPerPixel);
+        console.log("Head Px Width:", medianWidthPx);
+        console.log("Final MM:", headWidthMM);
+
+        // Display
+        document.getElementById('final-width').innerText = Math.round(headWidthMM);
+        uiActive.classList.add('hidden');
+        uiResult.classList.remove('hidden');
+    }
+
+
+    // --- Helpers ---
+    function drawPoint(pt, w, h, color) {
         canvasCtx.beginPath();
-        canvasCtx.arc(pt.x*w, pt.y*h, 4, 0, 2*Math.PI);
+        canvasCtx.arc(pt.x*w, pt.y*h, 3, 0, 2*Math.PI);
         canvasCtx.fillStyle = color;
         canvasCtx.fill();
+    }
+    
+    function drawIris(lm, w, h) {
+        // Draw Left Iris
+        const iL = lm[468]; 
+        drawPoint(iL, w, h, 'cyan');
     }
 
 </script>

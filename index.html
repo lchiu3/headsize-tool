@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Ultimate Head Sizing Tool</title>
+    <title>Head Sizing - Robust Version</title>
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/control_utils/control_utils.js" crossorigin="anonymous"></script>
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js" crossorigin="anonymous"></script>
@@ -17,51 +17,351 @@
         }
 
         .app-container {
-            position: relative; width: 100%; max-width: 960px; aspect-ratio: 16/9;
-            background: black; border-radius: 20px; overflow: hidden;
+            position: relative; width: 100%; max-width: 960px; 
+            aspect-ratio: 16/9; /* Modern browsers */
+            min-height: 480px; /* Fallback for older browsers */
+            background: #000; border-radius: 20px; overflow: hidden;
             box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+            display: flex; align-items: center; justify-content: center;
         }
 
-        /* Video Layer */
         video { position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover; transform: scaleX(-1); }
         canvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; transform: scaleX(-1); }
 
-        /* UI Overlays */
+        /* UI Layers */
         .ui-layer {
             position: absolute; top: 0; left: 0; width: 100%; height: 100%;
             display: flex; flex-direction: column; align-items: center; justify-content: center;
             background: rgba(0,0,0,0.85); transition: opacity 0.5s; z-index: 10;
+            text-align: center; padding: 20px; box-sizing: border-box;
         }
         .ui-layer.transparent { background: rgba(0,0,0,0); justify-content: flex-start; padding-top: 40px; }
         .hidden { opacity: 0; pointer-events: none; z-index: -1; }
 
-        /* Typography & Buttons */
-        h1 { margin-bottom: 10px; font-weight: 300; letter-spacing: 1px; }
-        h2 { font-size: 1.5rem; margin-bottom: 20px; color: #aaa; font-weight: 400; }
+        h1 { margin-bottom: 10px; font-weight: 300; letter-spacing: 1px; color: #fff; }
+        h2 { font-size: 1.2rem; margin-bottom: 20px; color: #aaa; font-weight: 400; max-width: 600px; line-height: 1.5; }
+        
         .btn {
             background: #007bff; color: white; border: none; padding: 15px 40px;
             font-size: 1.1rem; border-radius: 50px; cursor: pointer; transition: transform 0.2s;
             font-weight: 600; box-shadow: 0 4px 15px rgba(0,123,255,0.4); margin: 10px;
         }
         .btn:hover { transform: scale(1.05); background: #0056b3; }
-        .btn-secondary { background: #333; box-shadow: none; border: 1px solid #555; }
+        .btn:disabled { background: #555; cursor: not-allowed; opacity: 0.7; }
 
-        /* Step 2: Sweep Progress */
-        .sweep-dots { display: flex; gap: 15px; margin-top: 20px; }
-        .dot {
-            width: 15px; height: 15px; border-radius: 50%; background: #333;
-            border: 2px solid #555; transition: all 0.3s;
-        }
-        .dot.active { border-color: #00BFFF; box-shadow: 0 0 10px #00BFFF; }
-        .dot.done { background: #32CD32; border-color: #32CD32; box-shadow: 0 0 10px #32CD32; }
+        /* Step 2/3 UI Elements */
         .instruction-pill {
             background: rgba(20,20,20,0.9); padding: 10px 30px; border-radius: 30px;
-            border: 1px solid #444; font-size: 1.2rem; color: white;
+            border: 1px solid #444; font-size: 1.2rem; color: white; margin-bottom: 20px;
         }
+        .sweep-dots { display: flex; gap: 15px; }
+        .dot { width: 15px; height: 15px; border-radius: 50%; background: #333; border: 2px solid #555; transition: all 0.3s; }
+        .dot.active { border-color: #00BFFF; box-shadow: 0 0 10px #00BFFF; }
+        .dot.done { background: #32CD32; border-color: #32CD32; box-shadow: 0 0 10px #32CD32; }
 
-        /* Step 3: Sweet Spot Guide */
         .face-guide {
             position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
-            width: 240px; height: 320px;
+            width: 240px; height: 320px; pointer-events: none;
             border: 4px dashed rgba(255,255,255,0.3); border-radius: 50% 50% 50% 50% / 60% 60% 40% 40%;
-            transition: border 0.3s, box-shadow 0.3s
+            transition: border 0.3s, box-shadow 0.3s;
+        }
+        .face-guide.good { border-color: #32CD32; border-style: solid; box-shadow: 0 0 30px rgba(50,205,50,0.3); }
+
+        .progress-bar {
+            position: absolute; bottom: 40px; width: 300px; height: 6px;
+            background: #333; border-radius: 10px; overflow: hidden;
+        }
+        .fill { height: 100%; width: 0%; background: #32CD32; transition: width 0.1s; }
+
+        .result-val { font-size: 5rem; font-weight: bold; color: #00BFFF; margin: 20px 0; }
+        
+        /* Loading Spinner */
+        .loader {
+            border: 4px solid #333; border-top: 4px solid #007bff; border-radius: 50%;
+            width: 40px; height: 40px; animation: spin 1s linear infinite; margin-bottom: 20px;
+        }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+
+        /* Error Box */
+        .error-msg { color: #ff6b6b; background: rgba(50,0,0,0.5); padding: 15px; border-radius: 8px; border: 1px solid #ff6b6b; display: none; margin-top: 20px;}
+    </style>
+</head>
+<body>
+
+<div class="app-container">
+    <video id="input_video" playsinline></video>
+    <canvas id="output_canvas"></canvas>
+
+    <div id="step-1" class="ui-layer">
+        <h1>Head Sizing Tool</h1>
+        <h2>To ensure accuracy, we will calibrate your camera using a short head movement sweep.</h2>
+        
+        <div id="loading-spinner" style="display:none;">
+            <div class="loader"></div>
+            <p>Starting Camera...</p>
+        </div>
+
+        <div id="controls">
+            <p style="margin-bottom:15px; font-size:0.9rem; color:#888;">Select Gender (for baseline reference):</p>
+            <button class="btn" onclick="startApp('male')">Male</button>
+            <button class="btn" onclick="startApp('female')">Female</button>
+        </div>
+
+        <div id="error-box" class="error-msg"></div>
+    </div>
+
+    <div id="step-2" class="ui-layer hidden transparent">
+        <div class="instruction-pill" id="sweep-instr">Center your face</div>
+        <div class="sweep-dots">
+            <div id="dot-center" class="dot"></div>
+            <div id="dot-left" class="dot"></div>
+            <div id="dot-right" class="dot"></div>
+            <div id="dot-up" class="dot"></div>
+            <div id="dot-down" class="dot"></div>
+        </div>
+    </div>
+
+    <div id="step-3" class="ui-layer hidden transparent">
+        <div class="instruction-pill" id="measure-instr">Move back to fit in oval</div>
+        <div id="face-guide" class="face-guide"></div>
+        <div class="progress-bar"><div id="measure-fill" class="fill"></div></div>
+    </div>
+
+    <div id="step-4" class="ui-layer hidden">
+        <h1>Measurement Complete</h1>
+        <div class="result-val"><span id="final-result">0</span> mm</div>
+        <p style="color:#666;">Distance-corrected estimate</p>
+        <button class="btn" onclick="location.reload()" style="background:#333;">Measure Again</button>
+    </div>
+</div>
+
+<script>
+    // --- Safe Start Logic ---
+    window.onload = function() {
+        // Check Protocol
+        if (window.location.protocol === 'file:') {
+            showError("⚠️ Security Restriction Detected.<br><br>Browsers block webcam access when opening HTML files directly.<br>Please use a local server (like VS Code Live Server) or upload this file to a secure website.");
+            document.getElementById('controls').style.display = 'none';
+        }
+    };
+
+    function showError(msg) {
+        const err = document.getElementById('error-box');
+        err.innerHTML = msg;
+        err.style.display = 'block';
+    }
+
+    // --- Config & State ---
+    const IRIS_REAL_MM = 11.7; 
+    const FRAMES_TO_LOCK = 45;
+    
+    let state = {
+        step: 1,
+        genderIPD: 63,
+        calibratedScale: 0,
+        sweep: { center:[], left:[], right:[], up:[], down:[] },
+        measureBuffer: []
+    };
+
+    // --- DOM ---
+    const videoEl = document.getElementById('input_video');
+    const canvasEl = document.getElementById('output_canvas');
+    const ctx = canvasEl.getContext('2d');
+    const uiSteps = [1,2,3,4].map(n => document.getElementById(`step-${n}`));
+    const sweepInstr = document.getElementById('sweep-instr');
+    const measureInstr = document.getElementById('measure-instr');
+    const guideEl = document.getElementById('face-guide');
+    const fillEl = document.getElementById('measure-fill');
+
+    async function startApp(gender) {
+        state.genderIPD = (gender === 'male') ? 64.0 : 61.7;
+        
+        // Show loading
+        document.getElementById('controls').style.display = 'none';
+        document.getElementById('loading-spinner').style.display = 'block';
+
+        try {
+            await initCamera();
+            // If successful, move to step 2
+            goToStep(2);
+        } catch (e) {
+            console.error(e);
+            document.getElementById('loading-spinner').style.display = 'none';
+            showError(`Camera Error: ${e.message}<br><br>Please allow camera permissions and ensure you are using HTTPS or Localhost.`);
+        }
+    }
+
+    function goToStep(n) {
+        state.step = n;
+        uiSteps.forEach((el, i) => {
+            if (i + 1 === n) el.classList.remove('hidden');
+            else el.classList.add('hidden');
+        });
+    }
+
+    // --- CV Init ---
+    let faceMesh, hands, camera;
+
+    async function initCamera() {
+        return new Promise(async (resolve, reject) => {
+            try {
+                faceMesh = new FaceMesh({locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/${file}`});
+                faceMesh.setOptions({maxNumFaces: 1, refineLandmarks: true, minDetectionConfidence: 0.7});
+                faceMesh.onResults(onFaceResults);
+
+                hands = new Hands({locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`});
+                hands.setOptions({maxNumHands: 2, modelComplexity: 1, minDetectionConfidence: 0.7});
+                hands.onResults(onHandResults);
+
+                camera = new Camera(videoEl, {
+                    onFrame: async () => {
+                        await faceMesh.send({image: videoEl});
+                        if(state.step === 3) await hands.send({image: videoEl});
+                    },
+                    width: 1280, height: 720
+                });
+                
+                await camera.start();
+                resolve();
+            } catch (err) {
+                reject(err);
+            }
+        });
+    }
+
+    // --- CV Loop: Face ---
+    let currentFace = null;
+
+    function onFaceResults(results) {
+        canvasEl.width = videoEl.videoWidth;
+        canvasEl.height = videoEl.videoHeight;
+        const w = canvasEl.width; const h = canvasEl.height;
+        ctx.save();
+        ctx.clearRect(0, 0, w, h);
+
+        if (!results.multiFaceLandmarks || results.multiFaceLandmarks.length === 0) {
+            currentFace = null; return;
+        }
+        
+        currentFace = results.multiFaceLandmarks[0];
+        const lm = currentFace;
+
+        // Draw basic mesh for feedback
+        // drawConnectors(ctx, lm, FACEMESH_TESSELATION, {color: '#C0C0C020', lineWidth: 1});
+
+        // Pose Calc
+        const nose = lm[1];
+        const leftCheek = lm[234]; const rightCheek = lm[454];
+        const forehead = lm[10];   const chin = lm[152];
+        const yaw = (nose.x - (leftCheek.x + rightCheek.x)/2) * 10;
+        const pitch = (nose.y - (forehead.y + chin.y)/2) * 10;
+
+        if (state.step === 2) handleSweep(lm, yaw, pitch, w, h);
+        else if (state.step === 3) handleSweetSpot(lm, w, h);
+    }
+
+    // --- CV Loop: Hands ---
+    function onHandResults(results) {
+        if (state.step !== 3 || !currentFace) { ctx.restore(); return; }
+
+        if (guideEl.classList.contains('good') && results.multiHandLandmarks && results.multiHandLandmarks.length === 2) {
+            const f1 = results.multiHandLandmarks[0][8];
+            const f2 = results.multiHandLandmarks[1][8];
+            
+            // Draw fingers
+            [f1,f2].forEach(f => {
+                ctx.beginPath(); ctx.arc(f.x*canvasEl.width, f.y*canvasEl.height, 8, 0, 2*Math.PI);
+                ctx.fillStyle='#32CD32'; ctx.fill();
+            });
+
+            // Calc
+            const dx = (f1.x - f2.x) * canvasEl.width;
+            const dy = (f1.y - f2.y) * canvasEl.height;
+            const mmDist = Math.sqrt(dx*dx + dy*dy) * state.calibratedScale;
+
+            state.measureBuffer.push(mmDist);
+            
+            // UI
+            measureInstr.innerText = "Hold Still...";
+            fillEl.style.width = `${(state.measureBuffer.length / FRAMES_TO_LOCK) * 100}%`;
+
+            // Line
+            ctx.strokeStyle = '#32CD32'; ctx.lineWidth = 4;
+            ctx.beginPath(); ctx.moveTo(f1.x*canvasEl.width, f1.y*canvasEl.height);
+            ctx.lineTo(f2.x*canvasEl.width, f2.y*canvasEl.height); ctx.stroke();
+
+            if (state.measureBuffer.length >= FRAMES_TO_LOCK) finish();
+        } else {
+            if (state.measureBuffer.length > 0) {
+                state.measureBuffer = [];
+                fillEl.style.width = "0%";
+                measureInstr.innerText = "Keep fingers on ears";
+            }
+        }
+        ctx.restore();
+    }
+
+    // --- Logic: Sweep ---
+    function handleSweep(lm, yaw, pitch, w, h) {
+        const getDist = (i1, i2) => Math.hypot((lm[i1].x-lm[i2].x)*w, (lm[i1].y-lm[i2].y)*h);
+        const avgIrisPx = (getDist(474,476) + getDist(469,471)) / 2;
+        const THRESH = 0.5;
+        let b = null;
+
+        if (Math.abs(yaw) < 0.2 && Math.abs(pitch) < 0.2) b = 'center';
+        else if (yaw < -THRESH) b = 'right';
+        else if (yaw > THRESH) b = 'left';
+        else if (pitch < -THRESH) b = 'down';
+        else if (pitch > THRESH) b = 'up';
+
+        if(b) {
+            sweepInstr.innerText = "Hold...";
+            if(state.sweep[b].length < 20) {
+                state.sweep[b].push(avgIrisPx);
+                document.getElementById(`dot-${b}`).classList.add('active');
+                if(state.sweep[b].length >= 20) {
+                    document.getElementById(`dot-${b}`).classList.remove('active');
+                    document.getElementById(`dot-${b}`).classList.add('done');
+                    checkSweep();
+                }
+            }
+        } else {
+            sweepInstr.innerText = "Turn Head: Left, Right, Up, Down";
+        }
+    }
+
+    function checkSweep() {
+        const s = state.sweep;
+        if (s.center.length >= 20 && s.left.length >= 20 && s.right.length >= 20 && s.up.length >= 20 && s.down.length >= 20) {
+            let all = [...s.center, ...s.left, ...s.right, ...s.up, ...s.down].sort((a,b)=>a-b);
+            const medianPx = all[Math.floor(all.length/2)];
+            state.calibratedScale = IRIS_REAL_MM / medianPx;
+            
+            // Gender Check
+            const pupilDistPx = Math.hypot((currentFace[468].x-currentFace[473].x)*canvasEl.width, (currentFace[468].y-currentFace[473].y)*canvasEl.height);
+            const measIPD = pupilDistPx * state.calibratedScale;
+            if(Math.abs(measIPD - state.genderIPD) > 15) {
+                state.calibratedScale = (state.calibratedScale + (state.genderIPD/pupilDistPx)) / 2;
+            }
+            goToStep(3);
+        }
+    }
+
+    // --- Logic: Sweet Spot ---
+    function handleSweetSpot(lm, w, h) {
+        const faceH = (lm[152].y - lm[10].y) * h;
+        const ratio = faceH / h;
+        
+        if (ratio < 0.35) { measureInstr.innerText = "Too Far - Come Closer"; guideEl.className = "face-guide bad"; }
+        else if (ratio > 0.50) { measureInstr.innerText = "Too Close - Move Back"; guideEl.className = "face-guide bad"; }
+        else { measureInstr.innerText = "Perfect. Place fingers on ears."; guideEl.className = "face-guide good"; }
+    }
+
+    function finish() {
+        state.measureBuffer.sort((a,b)=>a-b);
+        document.getElementById('final-result').innerText = Math.round(state.measureBuffer[Math.floor(state.measureBuffer.length/2)]);
+        goToStep(4);
+    }
+</script>
+</body>
+</html>

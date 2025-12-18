@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Accuracy Test: Fingers vs Face Mesh</title>
+    <title>Head Sizing - Production Ready</title>
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/control_utils/control_utils.js" crossorigin="anonymous"></script>
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js" crossorigin="anonymous"></script>
@@ -11,174 +11,266 @@
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js" crossorigin="anonymous"></script>
     
     <style>
-        body { background-color: #121212; color: white; font-family: 'Segoe UI', sans-serif; margin: 0; height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; }
-        .container { position: relative; width: 100%; max-width: 960px; aspect-ratio: 16/9; background: #000; border-radius: 20px; overflow: hidden; display: flex; align-items: center; justify-content: center; }
-        video { position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover; transform: scaleX(-1); }
-        canvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; transform: scaleX(-1); }
+        body { background-color: #121212; color: white; font-family: 'Segoe UI', Roboto, sans-serif; margin: 0; height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+        .app-container { position: relative; width: 100%; max-width: 960px; aspect-ratio: 16/9; min-height: 480px; background: #000; border-radius: 20px; overflow: hidden; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5); display: flex; align-items: center; justify-content: center; }
+        video, canvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; transform: scaleX(-1); object-fit: cover; }
         
-        /* The comparison UI */
-        .hud-panel {
-            position: absolute; bottom: 20px; width: 90%;
-            display: flex; gap: 20px; justify-content: center;
-            z-index: 10;
-        }
+        .ui-layer { position: absolute; top: 0; left: 0; width: 100%; height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; background: rgba(0,0,0,0.85); transition: opacity 0.5s; z-index: 10; text-align: center; padding: 20px; box-sizing: border-box; }
+        .ui-layer.transparent { background: rgba(0,0,0,0); justify-content: flex-start; padding-top: 40px; }
+        .hidden { opacity: 0; pointer-events: none; z-index: -1; }
         
-        .metric-card {
-            background: rgba(0,0,0,0.8); padding: 15px 25px; border-radius: 15px;
-            border: 1px solid #333; text-align: center; min-width: 150px;
-        }
-        .metric-card.red { border-top: 4px solid #ff4757; }
-        .metric-card.green { border-top: 4px solid #32CD32; }
+        /* Buttons & Text */
+        .btn { background: #007bff; color: white; border: none; padding: 15px 40px; font-size: 1.1rem; border-radius: 50px; cursor: pointer; transition: transform 0.2s; font-weight: 600; box-shadow: 0 4px 15px rgba(0,123,255,0.4); margin: 10px; }
+        .btn:hover { transform: scale(1.05); }
+        h1 { margin-bottom: 10px; font-weight: 300; }
         
-        .label { font-size: 0.8rem; color: #aaa; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 5px; }
-        .value { font-size: 2.5rem; font-weight: bold; }
-        .unit { font-size: 1rem; color: #666; }
-        
-        .diff-badge {
-            background: #444; color: white; padding: 5px 10px; border-radius: 20px;
-            font-size: 0.9rem; align-self: center; font-weight: bold;
-        }
+        /* Sweep Dots */
+        .sweep-dots { display: flex; gap: 15px; }
+        .dot { width: 15px; height: 15px; border-radius: 50%; background: #333; border: 2px solid #555; position: relative; transition: all 0.3s; }
+        .dot.active { border-color: #00BFFF; box-shadow: 0 0 10px #00BFFF; }
+        .dot.done { background: #32CD32; border-color: #32CD32; box-shadow: 0 0 10px #32CD32; }
 
-        .controls { position: absolute; top: 20px; left: 50%; transform: translateX(-50%); z-index: 20; }
-        .btn { padding: 10px 20px; border-radius: 30px; border:none; background: #007bff; color: white; font-weight: bold; cursor: pointer; }
+        /* Guide */
+        .instruction-pill { background: rgba(20,20,20,0.9); padding: 10px 30px; border-radius: 30px; border: 1px solid #444; font-size: 1.2rem; color: white; margin-bottom: 20px; transition: all 0.3s; }
+        .instruction-pill.warning { border-color: #ffcc00; color: #ffcc00; }
+        .face-guide { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 240px; height: 320px; pointer-events: none; border: 4px dashed rgba(255,255,255,0.3); border-radius: 50% 50% 50% 50% / 60% 60% 40% 40%; transition: border 0.3s; }
+        .face-guide.good { border-color: #32CD32; border-style: solid; box-shadow: 0 0 30px rgba(50,205,50,0.3); }
+
+        /* Progress & Results */
+        .progress-container { position: absolute; bottom: 40px; width: 300px; height: 10px; background: #333; border-radius: 10px; overflow: hidden; }
+        .fill { height: 100%; width: 0%; background: #32CD32; transition: width 0.1s linear; }
+        .fill.unstable { background: #ffcc00; }
+        .result-val { font-size: 5rem; font-weight: bold; color: #00BFFF; margin: 20px 0; }
+        .badge { background: #333; color: #aaa; padding: 5px 10px; border-radius: 10px; font-size: 0.8rem; margin-top: 5px; }
+        .loader { border: 4px solid #333; border-top: 4px solid #007bff; border-radius: 50%; width: 40px; height: 40px; animation: spin 1s linear infinite; margin-bottom: 20px; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
     </style>
 </head>
 <body>
 
-<div class="container">
+<div class="app-container">
     <video id="input_video" playsinline></video>
     <canvas id="output_canvas"></canvas>
 
-    <div class="controls" id="start-btn">
-        <button class="btn" onclick="startCamera()">Start Comparison</button>
+    <div id="step-1" class="ui-layer">
+        <h1>Head Sizing Tool</h1>
+        <div id="loading-spinner" style="display:none;"><div class="loader"></div><p>Starting Camera...</p></div>
+        <div id="controls">
+            <p style="color:#aaa;">Select Gender Base:</p>
+            <button class="btn" onclick="startApp('male')">Male</button>
+            <button class="btn" onclick="startApp('female')">Female</button>
+        </div>
+        <div id="error-box" style="display:none; color:#ff6b6b; margin-top:20px;"></div>
     </div>
 
-    <div class="hud-panel" id="hud" style="display:none;">
-        <div class="metric-card red">
-            <div class="label">Face Mesh Only</div>
-            <div class="value" style="color:#ff4757;"><span id="val-face">0</span></div>
-            <div class="unit">mm</div>
+    <div id="step-2" class="ui-layer hidden transparent">
+        <div class="instruction-pill" id="sweep-instr">Center your face</div>
+        <div class="sweep-dots">
+            <div id="dot-left" class="dot"></div><div id="dot-center" class="dot"></div>
+            <div id="dot-right" class="dot"></div><div id="dot-down" class="dot"></div>
         </div>
+    </div>
 
-        <div class="diff-badge">Δ <span id="val-diff">0</span> mm</div>
+    <div id="step-3" class="ui-layer hidden transparent">
+        <div class="instruction-pill" id="measure-instr">Move back to fit in oval</div>
+        <div id="face-guide" class="face-guide"></div>
+        <div class="progress-container"><div id="measure-fill" class="fill"></div></div>
+    </div>
 
-        <div class="metric-card green">
-            <div class="label">Finger Pointing</div>
-            <div class="value" style="color:#32CD32;"><span id="val-fingers">--</span></div>
-            <div class="unit">mm</div>
-        </div>
+    <div id="step-4" class="ui-layer hidden">
+        <h1>Complete</h1>
+        <div class="result-val"><span id="final-result">0</span> mm</div>
+        <p>Head Width (Finger Method)</p>
+        <div class="badge">Depth Corrected (+12%)</div>
+        <br>
+        <button class="btn" onclick="location.reload()" style="background:#333;">Measure Again</button>
     </div>
 </div>
 
 <script>
+    /* ================= CONFIGURATION ================= */
     const IRIS_REAL_MM = 11.7; 
-    let scale = 0; // mm per pixel
+    const FRAMES_TO_LOCK = 150; // ~5 seconds
+    
+    // THE MAGIC NUMBER: Perspective Compensation
+    // This adds ~12% to the result to account for the ears being 
+    // further back than the eyes.
+    const DEPTH_FACTOR = 1.12; 
+
+    // ==================================================
+
+    let state = {
+        step: 1, genderIPD: 63, calibratedScale: 0,
+        sweep: { center:[], left:[], right:[], down:[] },
+        measureBuffer: [] 
+    };
 
     const videoEl = document.getElementById('input_video');
     const canvasEl = document.getElementById('output_canvas');
     const ctx = canvasEl.getContext('2d');
+    const uiSteps = [1,2,3,4].map(n => document.getElementById(`step-${n}`));
+    const sweepInstr = document.getElementById('sweep-instr');
+    const measureInstr = document.getElementById('measure-instr');
+    const guideEl = document.getElementById('face-guide');
+    const fillEl = document.getElementById('measure-fill');
 
-    async function startCamera() {
-        document.getElementById('start-btn').style.display = 'none';
-        document.getElementById('hud').style.display = 'flex';
-
-        const faceMesh = new FaceMesh({locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/${file}`});
-        faceMesh.setOptions({maxNumFaces: 1, refineLandmarks: true, minDetectionConfidence: 0.7});
-        faceMesh.onResults(onFaceResults);
-
-        const hands = new Hands({locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`});
-        hands.setOptions({maxNumHands: 2, modelComplexity: 1, minDetectionConfidence: 0.7});
-        hands.onResults(onHandResults);
-
-        const camera = new Camera(videoEl, {
-            onFrame: async () => {
-                await faceMesh.send({image: videoEl});
-                await hands.send({image: videoEl});
-            },
-            width: 1280, height: 720
-        });
-        camera.start();
+    async function startApp(g) {
+        state.genderIPD = (g === 'male') ? 64.0 : 61.7;
+        document.getElementById('controls').style.display = 'none';
+        document.getElementById('loading-spinner').style.display = 'block';
+        try { await initCamera(); goToStep(2); } 
+        catch (e) { document.getElementById('error-box').innerHTML = e.message; document.getElementById('error-box').style.display = 'block'; }
     }
 
-    // SHARED STATE
-    let currentFaceMM = 0;
-    let currentFingerMM = 0;
+    function goToStep(n) {
+        state.step = n;
+        uiSteps.forEach((el, i) => el.classList.toggle('hidden', i + 1 !== n));
+    }
 
+    let faceMesh, hands, camera;
+    async function initCamera() {
+        return new Promise(async (resolve, reject) => {
+            faceMesh = new FaceMesh({locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/${file}`});
+            faceMesh.setOptions({maxNumFaces: 1, refineLandmarks: true, minDetectionConfidence: 0.7});
+            faceMesh.onResults(onFaceResults);
+
+            hands = new Hands({locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`});
+            hands.setOptions({maxNumHands: 2, modelComplexity: 1, minDetectionConfidence: 0.7});
+            hands.onResults(onHandResults);
+
+            camera = new Camera(videoEl, {
+                onFrame: async () => {
+                    await faceMesh.send({image: videoEl});
+                    if(state.step === 3) await hands.send({image: videoEl});
+                }, width: 1280, height: 720
+            });
+            await camera.start(); resolve();
+        });
+    }
+
+    let currentFace = null;
     function onFaceResults(results) {
-        canvasEl.width = videoEl.videoWidth;
-        canvasEl.height = videoEl.videoHeight;
+        canvasEl.width = videoEl.videoWidth; canvasEl.height = videoEl.videoHeight;
         const w = canvasEl.width; const h = canvasEl.height;
-        
-        // Clear canvas every frame
         ctx.clearRect(0, 0, w, h);
 
-        if (!results.multiFaceLandmarks || results.multiFaceLandmarks.length === 0) return;
-        const lm = results.multiFaceLandmarks[0];
-
-        // 1. CALIBRATE SCALE (Live Iris)
-        const getDist = (i1, i2) => Math.hypot((lm[i1].x-lm[i2].x)*w, (lm[i1].y-lm[i2].y)*h);
-        const irisPx = (getDist(474,476) + getDist(469,471)) / 2;
-        scale = IRIS_REAL_MM / irisPx;
-
-        // 2. MEASURE A: Face Mesh (Tragion to Tragion)
-        // Landmarks: 234 (Left Ear), 454 (Right Ear)
-        const lEar = lm[234];
-        const rEar = lm[454];
-
-        // Draw Red Line (Mesh)
-        ctx.strokeStyle = '#ff4757'; ctx.lineWidth = 3;
-        ctx.beginPath(); ctx.moveTo(lEar.x*w, lEar.y*h); ctx.lineTo(rEar.x*w, rEar.y*h); ctx.stroke();
+        if (!results.multiFaceLandmarks || results.multiFaceLandmarks.length === 0) { currentFace = null; return; }
+        currentFace = results.multiFaceLandmarks[0];
         
-        // Draw Dots
-        ctx.fillStyle = '#ff4757';
-        ctx.beginPath(); ctx.arc(lEar.x*w, lEar.y*h, 5, 0, 2*Math.PI); ctx.fill();
-        ctx.beginPath(); ctx.arc(rEar.x*w, rEar.y*h, 5, 0, 2*Math.PI); ctx.fill();
+        const nose = currentFace[1];
+        const yaw = (nose.x - (currentFace[234].x + currentFace[454].x)/2) * 10;
+        const pitch = (nose.y - (currentFace[10].y + currentFace[152].y)/2) * 10;
 
-        const facePx = Math.hypot((lEar.x-rEar.x)*w, (lEar.y-rEar.y)*h);
-        currentFaceMM = Math.round(facePx * scale);
-        
-        document.getElementById('val-face').innerText = currentFaceMM;
-        updateDiff();
+        if (state.step === 2) handleSweep(currentFace, yaw, pitch, w, h);
+        else if (state.step === 3) handleSweetSpot(currentFace, w, h);
     }
 
     function onHandResults(results) {
-        if (!results.multiHandLandmarks || results.multiHandLandmarks.length !== 2) {
-            document.getElementById('val-fingers').innerText = "--";
-            currentFingerMM = 0;
-            return;
+        if (state.step !== 3 || !currentFace) return;
+        
+        // Only measure if Guide is Green (Distance correct)
+        if (guideEl.classList.contains('good') && results.multiHandLandmarks && results.multiHandLandmarks.length === 2) {
+            const f1 = results.multiHandLandmarks[0][8];
+            const f2 = results.multiHandLandmarks[1][8];
+            
+            // Draw
+            [f1,f2].forEach(f => {
+                ctx.beginPath(); ctx.arc(f.x*canvasEl.width, f.y*canvasEl.height, 8, 0, 2*Math.PI);
+                ctx.fillStyle='#32CD32'; ctx.fill();
+            });
+
+            const dx = (f1.x - f2.x) * canvasEl.width;
+            const dy = (f1.y - f2.y) * canvasEl.height;
+            
+            // 1. RAW PIXEL WIDTH
+            const rawPx = Math.sqrt(dx*dx + dy*dy);
+            
+            // 2. CONVERT TO MM (AT EYE PLANE)
+            const rawMM = rawPx * state.calibratedScale;
+            
+            // 3. APPLY DEPTH COMPENSATION (THE FIX)
+            const correctedMM = rawMM * DEPTH_FACTOR;
+
+            // Stability
+            let isStable = true;
+            if (state.measureBuffer.length > 5) {
+                const avg = state.measureBuffer.slice(-5).reduce((a,b)=>a+b,0) / 5;
+                if (Math.abs(correctedMM - avg) > 10) isStable = false;
+            }
+
+            if (isStable) {
+                state.measureBuffer.push(correctedMM);
+                fillEl.classList.remove('unstable'); measureInstr.classList.remove('warning');
+            } else {
+                fillEl.classList.add('unstable'); measureInstr.classList.add('warning');
+                measureInstr.innerText = "Stabilize hands...";
+            }
+
+            const sec = Math.ceil((FRAMES_TO_LOCK - state.measureBuffer.length) / 30);
+            if (isStable) measureInstr.innerText = `Hold Steady... ${sec}s`;
+            fillEl.style.width = `${(state.measureBuffer.length / FRAMES_TO_LOCK) * 100}%`;
+
+            ctx.strokeStyle = isStable ? '#32CD32' : '#ffcc00'; ctx.lineWidth = 4;
+            ctx.beginPath(); ctx.moveTo(f1.x*canvasEl.width, f1.y*canvasEl.height);
+            ctx.lineTo(f2.x*canvasEl.width, f2.y*canvasEl.height); ctx.stroke();
+
+            if (state.measureBuffer.length >= FRAMES_TO_LOCK) finish();
         }
-
-        const w = canvasEl.width; const h = canvasEl.height;
-        const f1 = results.multiHandLandmarks[0][8]; // Index Tip
-        const f2 = results.multiHandLandmarks[1][8];
-
-        // 3. MEASURE B: Fingers
-        // Draw Green Line
-        ctx.strokeStyle = '#32CD32'; ctx.lineWidth = 4;
-        ctx.beginPath(); ctx.moveTo(f1.x*w, f1.y*h); ctx.lineTo(f2.x*w, f2.y*h); ctx.stroke();
-
-        // Draw Dots
-        ctx.fillStyle = '#32CD32';
-        ctx.beginPath(); ctx.arc(f1.x*w, f1.y*h, 8, 0, 2*Math.PI); ctx.fill();
-        ctx.beginPath(); ctx.arc(f2.x*w, f2.y*h, 8, 0, 2*Math.PI); ctx.fill();
-
-        const fingerPx = Math.hypot((f1.x-f2.x)*w, (f1.y-f2.y)*h);
-        currentFingerMM = Math.round(fingerPx * scale);
-
-        document.getElementById('val-fingers').innerText = currentFingerMM;
-        updateDiff();
     }
 
-    function updateDiff() {
-        if(currentFingerMM > 0 && currentFaceMM > 0) {
-            const diff = currentFingerMM - currentFaceMM;
-            const el = document.getElementById('val-diff');
-            el.innerText = (diff > 0 ? "+" : "") + diff;
+    function handleSweep(lm, yaw, pitch, w, h) {
+        const getDist = (i1, i2) => Math.hypot((lm[i1].x-lm[i2].x)*w, (lm[i1].y-lm[i2].y)*h);
+        const avgIrisPx = (getDist(474,476) + getDist(469,471)) / 2;
+        
+        let b = null;
+        if (Math.abs(yaw) < 0.2 && Math.abs(pitch) < 0.2) b = 'center';
+        else if (yaw < -0.5) b = 'right'; else if (yaw > 0.5) b = 'left';
+        else if (pitch < -0.3) b = 'down';
+
+        if(b) {
+            sweepInstr.innerText = "Hold...";
+            const frames = (b === 'down') ? 10 : 20; // Faster down
+            if(state.sweep[b].length < frames) {
+                state.sweep[b].push(avgIrisPx);
+                document.getElementById(`dot-${b}`).classList.add('active');
+                if(state.sweep[b].length >= frames) {
+                    document.getElementById(`dot-${b}`).classList.remove('active');
+                    document.getElementById(`dot-${b}`).classList.add('done');
+                    checkSweep();
+                }
+            }
+        } else sweepInstr.innerText = "Turn Head: Left, Right, Down";
+    }
+
+    function checkSweep() {
+        const s = state.sweep;
+        if (s.center.length>=20 && s.left.length>=20 && s.right.length>=20 && s.down.length>=10) {
+            let all = [...s.center, ...s.left, ...s.right, ...s.down].sort((a,b)=>a-b);
+            state.calibratedScale = IRIS_REAL_MM / all[Math.floor(all.length/2)];
             
-            // Color logic
-            if(Math.abs(diff) > 10) el.parentElement.style.background = "#ffcc00"; // Big diff warning
-            else el.parentElement.style.background = "#444";
+            // Gender check
+            const ipdPx = Math.hypot((currentFace[468].x-currentFace[473].x)*canvasEl.width, (currentFace[468].y-currentFace[473].y)*canvasEl.height);
+            if(Math.abs((ipdPx * state.calibratedScale) - state.genderIPD) > 15) {
+                state.calibratedScale = (state.calibratedScale + (state.genderIPD/ipdPx))/2;
+            }
+            goToStep(3);
         }
+    }
+
+    function handleSweetSpot(lm, w, h) {
+        const ratio = ((lm[152].y - lm[10].y) * h) / h;
+        if (ratio < 0.35) { measureInstr.innerText = "Too Far"; guideEl.className = "face-guide bad"; }
+        else if (ratio > 0.50) { measureInstr.innerText = "Too Close"; guideEl.className = "face-guide bad"; }
+        else { 
+            if (state.measureBuffer.length === 0) measureInstr.innerText = "Perfect. Place fingers on ears."; 
+            guideEl.className = "face-guide good"; 
+        }
+    }
+
+    function finish() {
+        state.measureBuffer.sort((a,b)=>a-b);
+        document.getElementById('final-result').innerText = Math.round(state.measureBuffer[Math.floor(state.measureBuffer.length/2)]);
+        goToStep(4);
     }
 </script>
 </body>

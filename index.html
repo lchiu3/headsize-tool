@@ -3,384 +3,521 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Headphone Fitting Tool v2</title>
-    
+    <title>Head Size Measurement</title>
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/control_utils/control_utils.js" crossorigin="anonymous"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/face_mesh.js" crossorigin="anonymous"></script>
-    <script async src="https://docs.opencv.org/4.5.4/opencv.js" onload="onOpenCvReady();" type="text/javascript"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/holistic/holistic.js" crossorigin="anonymous"></script>
 
     <style>
-        body { font-family: sans-serif; background: #f0f2f5; margin: 0; display: flex; height: 100vh; justify-content: center; align-items: center; }
-        
+        :root {
+            --primary: #6366f1;
+            --bg: #f3f4f6;
+            --card-bg: #ffffff;
+            --text: #1f2937;
+            --danger: #ef4444;
+            --success: #10b981;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: var(--bg);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            overflow: hidden;
+        }
+
         .container {
-            position: relative; width: 640px; height: 480px; background: #000; border-radius: 20px; overflow: hidden; box-shadow: 0 20px 50px rgba(0,0,0,0.2);
+            width: 90%;
+            max-width: 600px;
+            background: var(--card-bg);
+            border-radius: 24px;
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1);
+            padding: 30px;
+            text-align: center;
+            position: relative;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 400px;
         }
 
-        /* Video/Canvas Stack */
-        video { display: none; }
-        canvas { width: 100%; height: 100%; transform: scaleX(-1); } /* Mirror */
+        h1 { font-size: 1.5rem; color: var(--text); margin-bottom: 10px; }
+        p { color: #6b7280; line-height: 1.5; margin-bottom: 20px; }
 
-        /* UI Overlay */
-        .overlay {
-            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-            pointer-events: none; display: flex; flex-direction: column; justify-content: space-between; padding: 20px; box-sizing: border-box;
+        .btn {
+            background-color: var(--primary);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 12px;
+            font-size: 1rem;
+            cursor: pointer;
+            font-weight: 600;
+            transition: transform 0.1s;
+            margin: 5px;
+        }
+        .btn:active { transform: scale(0.98); }
+        .btn-outline { background: transparent; border: 2px solid var(--primary); color: var(--primary); }
+
+        /* Step Visibility Control */
+        .step { display: none; width: 100%; height: 100%; flex-direction: column; align-items: center; justify-content: center; }
+        .step.active { display: flex; }
+
+        /* Step 1: Gender */
+        .gender-options { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; }
+        .ipd-input-group { margin-top: 15px; display: none; }
+        .ipd-input-group input { padding: 8px; border: 1px solid #ddd; border-radius: 6px; width: 80px; text-align: center;}
+
+        /* Step 2: Graphic */
+        .instruction-graphic {
+            width: 200px;
+            height: 200px;
+            background: #e0e7ff;
+            border-radius: 50%;
+            margin: 20px auto;
+            position: relative;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        .head-shape {
+            width: 100px;
+            height: 120px;
+            border: 4px solid var(--primary);
+            border-radius: 40px;
+            position: relative;
+        }
+        .finger-dot {
+            width: 20px;
+            height: 20px;
+            background: var(--danger);
+            border-radius: 50%;
+            position: absolute;
+            top: 50%;
+            transform: translateY(-50%);
+        }
+        .left-finger { left: -30px; }
+        .right-finger { right: -30px; }
+        .arrow-line {
+            position: absolute;
+            top: 50%;
+            left: -20px;
+            right: -20px;
+            height: 2px;
+            background: var(--text);
+            z-index: -1;
         }
 
-        .box {
-            background: rgba(255,255,255,0.9); padding: 15px; border-radius: 10px; text-align: center; pointer-events: auto; align-self: center;
-            max-width: 80%; box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+        /* Step 3: Camera */
+        .camera-container {
+            position: relative;
+            width: 100%;
+            max-width: 480px;
+            border-radius: 16px;
+            overflow: hidden;
+            background: black;
+            aspect-ratio: 4/3;
         }
-
-        h2 { margin: 0 0 5px 0; font-size: 1.1rem; }
-        p { margin: 0 0 10px 0; font-size: 0.9rem; color: #555; }
-        button { background: #007bff; color: white; border: none; padding: 8px 16px; border-radius: 5px; cursor: pointer; font-size: 1rem; }
-        button:hover { background: #0056b3; }
-
-        /* Manual Guide Box */
-        #manual-guide {
-            position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
-            width: 200px; height: 126px; /* Approx card ratio */
-            border: 4px dashed #00FF00; border-radius: 8px;
-            display: none; align-items: center; justify-content: center;
-            box-shadow: 0 0 0 9999px rgba(0,0,0,0.5); /* Dim everything else */
+        video {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            transform: scaleX(-1); /* Mirror effect */
+        }
+        canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            transform: scaleX(-1); /* Mirror effect */
         }
         
-        /* Debug View */
-        #debug-canvas {
-            position: absolute; bottom: 10px; left: 10px; width: 120px; height: 90px;
-            border: 2px solid white; background: black; transform: scaleX(-1); display: none;
+        .overlay-ui {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            padding: 20px;
+            box-sizing: border-box;
         }
-        
-        /* Loading */
-        #loading { position: absolute; top:0; left:0; width:100%; height:100%; background:white; z-index:99; display:flex; justify-content:center; align-items:center; }
+
+        .status-pill {
+            background: rgba(0,0,0,0.7);
+            color: white;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 0.9rem;
+            align-self: center;
+            backdrop-filter: blur(4px);
+        }
+        .status-pill.warning { background: rgba(239, 68, 68, 0.9); }
+        .status-pill.success { background: rgba(16, 185, 129, 0.9); }
+
+        .ghost-overlay {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 200px;
+            height: 260px;
+            border: 2px dashed rgba(255, 255, 255, 0.5);
+            border-radius: 100px;
+            z-index: 10;
+        }
+        .crosshair {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 20px;
+            height: 20px;
+        }
+        .crosshair::before, .crosshair::after {
+            content: '';
+            position: absolute;
+            background: rgba(255,255,255,0.5);
+        }
+        .crosshair::before { top: 9px; left: 0; width: 20px; height: 2px; }
+        .crosshair::after { top: 0; left: 9px; width: 2px; height: 20px; }
+
+        .progress-bar {
+            height: 6px;
+            background: #e5e7eb;
+            width: 80%;
+            align-self: center;
+            border-radius: 3px;
+            overflow: hidden;
+            margin-top: auto;
+        }
+        .progress-fill {
+            height: 100%;
+            width: 0%;
+            background: var(--success);
+            transition: width 0.2s;
+        }
+
+        .result-overlay {
+            position: absolute;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(255,255,255,0.95);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 50;
+            display: none;
+        }
+        .result-value {
+            font-size: 3rem;
+            font-weight: bold;
+            color: var(--primary);
+        }
+
+        /* Loading Spinner */
+        .loader {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid var(--primary);
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            animation: spin 1s linear infinite;
+            display: none; 
+            margin: 20px auto;
+        }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+
     </style>
 </head>
 <body>
 
 <div class="container">
-    <video id="input_video" playsinline></video>
-    <canvas id="output_canvas"></canvas>
     
-    <canvas id="debug-canvas"></canvas>
+    <div id="step1" class="step active">
+        <h1>Calibration</h1>
+        <p>To measure accurately, we need to calibrate using average eye distance (IPD).</p>
+        <p>Please select your gender or enter your IPD manually.</p>
+        
+        <div class="gender-options">
+            <button class="btn" onclick="setIPD(64, 'Male')">Male</button>
+            <button class="btn" onclick="setIPD(62, 'Female')">Female</button>
+            <button class="btn btn-outline" onclick="showCustomIPD()">Custom / Other</button>
+        </div>
 
-    <div id="loading">Loading Vision Engine...</div>
-
-    <div id="manual-guide">
-        <div style="color:white; font-weight:bold; text-shadow:0 1px 3px black;">Fit Card Here</div>
+        <div class="ipd-input-group" id="customIPDGroup">
+            <p style="margin-bottom: 5px; font-size: 0.9rem;">Enter IPD (mm):</p>
+            <input type="number" id="manualIPD" value="63">
+            <button class="btn" onclick="setIPD(document.getElementById('manualIPD').value, 'Custom')">Next</button>
+        </div>
     </div>
 
-    <div class="overlay">
-        <div id="step1" class="box">
-            <h2>Step 1: Calibration</h2>
+    <div id="step2" class="step">
+        <h1>How to Measure</h1>
+        <div class="instruction-graphic">
+            <div class="head-shape"></div>
+            <div class="finger-dot left-finger"></div>
+            <div class="finger-dot right-finger"></div>
+            <div class="arrow-line"></div>
+        </div>
+        <p>Place your <b>Index Fingers</b> on your <b>Tragus</b> (the small bump in front of your ear canal).</p>
+        <p>Keep your head straight and look at the camera.</p>
+        <button class="btn" onclick="goToStep3()">I Understand</button>
+    </div>
+
+    <div id="step3" class="step">
+        <h3 id="measure-title">Align your face</h3>
+        <div class="loader" id="loader"></div>
+        <div class="camera-container">
+            <video id="input_video" playsinline></video>
+            <canvas id="output_canvas"></canvas>
             
-            <p>Hold a standard card against your forehead.</p>
-            <div id="status-text" style="color:#e67e22; font-weight:bold; margin-bottom:10px;">Looking for card shape...</div>
-            
-            <div style="display:flex; gap:10px; justify-content:center;">
-                <button onclick="toggleDebug()">Show/Hide Debug View</button>
-                <button onclick="switchToManual()" style="background:#6c757d;">Switch to Manual Mode</button>
+            <div class="ghost-overlay"></div>
+            <div class="crosshair"></div>
+
+            <div class="overlay-ui">
+                <div id="status-msg" class="status-pill">Waiting for camera...</div>
+                <div class="progress-bar">
+                    <div class="progress-fill" id="progress-fill"></div>
+                </div>
+            </div>
+
+            <div id="result-overlay" class="result-overlay">
+                <h2>Head Breadth</h2>
+                <div class="result-value" id="final-result">-- mm</div>
+                <p>Recorded successfully</p>
+                <button class="btn" onclick="location.reload()">Measure Again</button>
             </div>
         </div>
-
-        <div id="step1-manual" class="box" style="display:none;">
-            <h2>Manual Mode</h2>
-            <p>Align card exactly inside the dashed box.</p>
-            <button onclick="confirmManual()">Card is Aligned</button>
-        </div>
-
-        <div id="step2" class="box" style="display:none;">
-             
-
-[Image of tragus ear anatomy]
-
-            <h2>Step 2: Fingers on Tragus</h2>
-            <p>Place index fingers on the small bumps (Tragus) in front of your ears.</p>
-            <button onclick="startMeasure()">Start Measuring</button>
-        </div>
-
-        <div id="step3" class="box" style="display:none;">
-            <h2>Step 3: Hold Still</h2>
-            <h1 id="live-val">0 mm</h1>
-            <p id="pose-msg">Checking rotation...</p>
-        </div>
-
-        <div id="step4" class="box" style="display:none;">
-            <h2>Done!</h2>
-            <p>Head Breadth:</p>
-            <h1 id="final-val" style="color:#28a745; margin:0;">0 mm</h1>
-            <br>
-            <button onclick="location.reload()">Measure Again</button>
-        </div>
     </div>
+
 </div>
 
 <script>
-    // --- Config ---
-    const CARD_REAL_WIDTH = 85.6; // mm
-    const MANUAL_BOX_WIDTH_PX = 200; // The pixel width of our CSS #manual-guide box
-
-    // --- State ---
-    let mode = 'auto'; // 'auto' or 'manual'
-    let pixelsPerMM = 0;
-    let step = 1;
-    let cvReady = false;
-    let showDebug = false;
-
-    // Buffers
-    let autoScaleBuffer = [];
-    let breadthBuffer = [];
-
-    // Elements
-    const video = document.getElementById('input_video');
-    const canvas = document.getElementById('output_canvas');
-    const ctx = canvas.getContext('2d');
-    const debugCanvas = document.getElementById('debug-canvas');
-    const debugCtx = debugCanvas.getContext('2d');
-
-    // --- Init ---
-    function onOpenCvReady() {
-        cvReady = true;
-        document.getElementById('loading').style.display = 'none';
-        
-        const camera = new Camera(video, {
-            onFrame: async () => { await processFrame(); },
-            width: 640, height: 480
-        });
-        camera.start();
-    }
-
-    // --- Face Mesh ---
-    const faceMesh = new FaceMesh({locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/${file}`});
-    faceMesh.setOptions({maxNumFaces: 1, refineLandmarks: true, minDetectionConfidence: 0.5, minTrackingConfidence: 0.5});
+    // --- Global State ---
+    let userIPD = 63; // Default
+    let isScanning = false;
+    let measurementBuffer = [];
+    const BUFFER_SIZE = 40; // Frames to hold for stability
+    const STABILITY_THRESHOLD = 2.0; // Standard deviation allowed (mm)
     
-    let faceLandmarks = null;
-    faceMesh.onResults(results => {
-        if (results.multiFaceLandmarks && results.multiFaceLandmarks.length > 0) {
-            faceLandmarks = results.multiFaceLandmarks[0];
-        }
-    });
+    // --- DOM Elements ---
+    const step1 = document.getElementById('step1');
+    const step2 = document.getElementById('step2');
+    const step3 = document.getElementById('step3');
+    const statusMsg = document.getElementById('status-msg');
+    const progressFill = document.getElementById('progress-fill');
+    const resultOverlay = document.getElementById('result-overlay');
+    const finalResultDisplay = document.getElementById('final-result');
+    const loader = document.getElementById('loader');
 
-    // --- Main Loop ---
-    let src, dst, gray;
+    // --- Steps Logic ---
+    function setIPD(value, type) {
+        userIPD = parseFloat(value);
+        console.log(`IPD set to ${userIPD} (${type})`);
+        step1.classList.remove('active');
+        step2.classList.add('active');
+    }
 
-    async function processFrame() {
-        if (!cvReady) return;
+    function showCustomIPD() {
+        document.getElementById('customIPDGroup').style.display = 'block';
+    }
+
+    function goToStep3() {
+        step2.classList.remove('active');
+        step3.classList.add('active');
+        startCamera();
+    }
+
+    // --- Computer Vision Logic (MediaPipe) ---
+    const videoElement = document.getElementById('input_video');
+    const canvasElement = document.getElementById('output_canvas');
+    const canvasCtx = canvasElement.getContext('2d');
+
+    // Helper: Calculate distance between two points
+    function distance(p1, p2) {
+        return Math.sqrt(Math.pow(p2.x - p1.x, 2) + Math.pow(p2.y - p1.y, 2));
+    }
+
+    function onResults(results) {
+        if (!isScanning) return;
+
+        canvasCtx.save();
+        canvasCtx.clearRect(0, 0, canvasElement.width, canvasElement.height);
         
-        // Resize canvas to match video
-        canvas.width = video.videoWidth; 
-        canvas.height = video.videoHeight;
+        // Settings for drawing
+        canvasCtx.lineWidth = 2;
 
-        // Init OpenCV mats once
-        if (!src) {
-            src = new cv.Mat(video.videoHeight, video.videoWidth, cv.CV_8UC4);
-            dst = new cv.Mat(); 
-            gray = new cv.Mat();
-        }
+        let status = "Align Face & Hands";
+        let isStable = false;
+        let isAligned = false;
+        let warningClass = "";
 
-        // Send to Facemesh
-        await faceMesh.send({image: video});
+        if (results.faceLandmarks) {
+            // 1. Check Head Pose (Simple estimation)
+            // Nose tip: 1, Left Eye outer: 33, Right Eye outer: 263
+            const nose = results.faceLandmarks[1];
+            const leftEye = results.faceLandmarks[33];
+            const rightEye = results.faceLandmarks[263];
 
-        // Draw basic video
-        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-
-        // --- STEP 1: AUTO CALIBRATION ---
-        if (step === 1 && mode === 'auto') {
-            // Read image for OpenCV
-            let imgData = ctx.getImageData(0,0, canvas.width, canvas.height);
-            src.data.set(imgData.data);
+            // Yaw check: Nose x should be roughly in middle of eyes
+            const eyeMidX = (leftEye.x + rightEye.x) / 2;
+            const yawDiff = Math.abs(nose.x - eyeMidX);
             
-            // Edge Detection
-            cv.cvtColor(src, gray, cv.COLOR_RGBA2GRAY);
-            cv.GaussianBlur(gray, gray, new cv.Size(5, 5), 0);
-            cv.Canny(gray, dst, 30, 100); // Thresholds: Lower=more edges, Higher=cleaner
+            // Pitch check: Nose y should be below eyes but not too far
+            const eyeMidY = (leftEye.y + rightEye.y) / 2;
+            const pitchDiff = nose.y - eyeMidY; // Positive because Y goes down
 
-            // Debug View
-            if (showDebug) {
-                cv.imshow('debug-canvas', dst);
+            if (yawDiff > 0.05) {
+                status = "Turn head straight";
+                warningClass = "warning";
+            } else if (pitchDiff < 0.02) {
+                status = "Look down slightly";
+                warningClass = "warning";
+            } else if (pitchDiff > 0.1) {
+                status = "Look up slightly";
+                warningClass = "warning";
+            } else {
+                isAligned = true;
             }
 
-            // Find Contours
-            let contours = new cv.MatVector();
-            let hierarchy = new cv.Mat();
-            cv.findContours(dst, contours, hierarchy, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_SIMPLE);
+            // Draw Face Mesh (simplified)
+            // We just draw the irises for feedback
+            const leftIris = results.faceLandmarks[468];
+            const rightIris = results.faceLandmarks[473];
+            
+            if(leftIris && rightIris) {
+                // Draw dots on eyes
+                canvasCtx.fillStyle = "#10b981";
+                const w = canvasElement.width;
+                const h = canvasElement.height;
+                canvasCtx.beginPath(); arc(canvasCtx, leftIris.x * w, leftIris.y * h); canvasCtx.fill();
+                canvasCtx.beginPath(); arc(canvasCtx, rightIris.x * w, rightIris.y * h); canvasCtx.fill();
 
-            let bestRect = null;
-            let maxArea = 0;
+                // 2. Calculate Scale (Pixels per MM)
+                // Distance between irises in normalized coordinates
+                const irisDistNorm = distance(leftIris, rightIris);
+                // We use the normalized distance directly against the known IPD
+                // scale = mm / normalized_unit
+                const mmPerUnit = userIPD / irisDistNorm;
 
-            for (let i = 0; i < contours.size(); ++i) {
-                let cnt = contours.get(i);
-                let area = cv.contourArea(cnt);
-                if (area < 4000) continue; // Too small
+                // 3. Detect Fingers
+                if (results.leftHandLandmarks && results.rightHandLandmarks && isAligned) {
+                    // Index finger tip is landmark 8
+                    const leftIndex = results.leftHandLandmarks[8];
+                    const rightIndex = results.rightHandLandmarks[8];
 
-                let peri = cv.arcLength(cnt, true);
-                let approx = new cv.Mat();
-                cv.approxPolyDP(cnt, approx, 0.02 * peri, true);
+                    // Draw fingers
+                    canvasCtx.fillStyle = "#ef4444";
+                    canvasCtx.beginPath(); arc(canvasCtx, leftIndex.x * w, leftIndex.y * h); canvasCtx.fill();
+                    canvasCtx.beginPath(); arc(canvasCtx, rightIndex.x * w, rightIndex.y * h); canvasCtx.fill();
 
-                if (approx.rows === 4) {
-                    let rect = cv.boundingRect(approx);
-                    let ratio = rect.width / rect.height;
+                    // Calculate Head Breadth
+                    const fingerDistNorm = distance(leftIndex, rightIndex);
+                    const currentBreadthMM = fingerDistNorm * mmPerUnit;
+
+                    status = `Measuring: ${Math.round(currentBreadthMM)}mm`;
                     
-                    // Card is ~1.58. Allow 1.4 to 1.8
-                    if (ratio > 1.4 && ratio < 1.8) {
-                        if (area > maxArea) {
-                            maxArea = area;
-                            bestRect = rect;
+                    // 4. Stability Check
+                    measurementBuffer.push(currentBreadthMM);
+                    if (measurementBuffer.length > BUFFER_SIZE) measurementBuffer.shift();
+
+                    if (measurementBuffer.length === BUFFER_SIZE) {
+                        const mean = measurementBuffer.reduce((a, b) => a + b) / BUFFER_SIZE;
+                        const variance = measurementBuffer.reduce((a, b) => a + Math.pow(b - mean, 2), 0) / BUFFER_SIZE;
+                        const stdDev = Math.sqrt(variance);
+
+                        // Update Progress Bar based on stability (inverse of stdDev)
+                        let progress = Math.max(0, 100 - (stdDev * 10)); // Arbitrary scaling
+                        if(stdDev < STABILITY_THRESHOLD) {
+                            progress = 100;
+                            isStable = true;
+                            finishMeasurement(mean);
                         }
+                        
+                        progressFill.style.width = `${progress}%`;
                     }
+                } else if (isAligned) {
+                    status = "Place index fingers on tragus";
                 }
-                approx.delete();
             }
-
-            if (bestRect) {
-                // Draw detected box
-                ctx.lineWidth = 4;
-                ctx.strokeStyle = '#00FF00';
-                ctx.strokeRect(bestRect.x, bestRect.y, bestRect.width, bestRect.height);
-                
-                // Privacy Blur
-                ctx.fillStyle = 'rgba(255,255,255,0.9)';
-                ctx.fillRect(bestRect.x, bestRect.y, bestRect.width, bestRect.height);
-                
-                // Save scale
-                let currentScale = bestRect.width / CARD_REAL_WIDTH;
-                autoScaleBuffer.push(currentScale);
-                if(autoScaleBuffer.length > 20) autoScaleBuffer.shift();
-                
-                checkAutoLock();
-            }
-
-            contours.delete(); hierarchy.delete();
+        } else {
+            status = "Face not found";
+            warningClass = "warning";
         }
 
-        // --- STEP 3: MEASURE HEAD ---
-        if (step === 3 && faceLandmarks) {
-            measureHead();
-        }
+        // Update UI Text
+        statusMsg.innerText = status;
+        statusMsg.className = "status-pill " + warningClass;
 
-        // Draw Landmarks Helper
-        if (faceLandmarks && step > 1) {
-             const left = faceLandmarks[234];
-             const right = faceLandmarks[454];
-             ctx.fillStyle = 'cyan';
-             ctx.beginPath(); ctx.arc(left.x*canvas.width, left.y*canvas.height, 5, 0, 2*Math.PI); ctx.fill();
-             ctx.beginPath(); ctx.arc(right.x*canvas.width, right.y*canvas.height, 5, 0, 2*Math.PI); ctx.fill();
+        canvasCtx.restore();
+    }
+
+    function arc(ctx, x, y) {
+        ctx.arc(x, y, 5, 0, 2 * Math.PI);
+    }
+
+    function finishMeasurement(value) {
+        if (!isScanning) return;
+        isScanning = false;
+        finalResultDisplay.innerText = Math.round(value) + " mm";
+        resultOverlay.style.display = "flex";
+        
+        // Stop Camera
+        const stream = videoElement.srcObject;
+        if(stream) {
+            const tracks = stream.getTracks();
+            tracks.forEach(track => track.stop());
         }
     }
 
-    function checkAutoLock() {
-        if (autoScaleBuffer.length < 15) return;
+    // --- Initialization ---
+    function startCamera() {
+        loader.style.display = "block";
+        statusMsg.innerText = "Loading AI Models...";
         
-        // Simple variance check
-        let sum = autoScaleBuffer.reduce((a,b)=>a+b, 0);
-        let avg = sum / autoScaleBuffer.length;
-        let variance = autoScaleBuffer.reduce((a,b)=>a + Math.pow(b-avg,2), 0) / autoScaleBuffer.length;
+        const holistic = new Holistic({locateFile: (file) => {
+            return `https://cdn.jsdelivr.net/npm/@mediapipe/holistic/${file}`;
+        }});
 
-        if (variance < 0.2) {
-            pixelsPerMM = avg;
-            document.getElementById('status-text').innerText = "Card Locked! Success.";
-            setTimeout(() => { goToStep(2); }, 1000);
-        }
-    }
-
-    // --- UI Actions ---
-
-    function toggleDebug() {
-        showDebug = !showDebug;
-        document.getElementById('debug-canvas').style.display = showDebug ? 'block' : 'none';
-    }
-
-    function switchToManual() {
-        mode = 'manual';
-        document.getElementById('step1').style.display = 'none';
-        document.getElementById('step1-manual').style.display = 'block';
-        document.getElementById('manual-guide').style.display = 'flex';
-        // Hide Debug
-        document.getElementById('debug-canvas').style.display = 'none';
-    }
-
-    function confirmManual() {
-        // In manual mode, we assume the user matched the CSS box width to the card
-        // We need to relate CSS pixels to Canvas pixels.
-        
-        // 1. Get size of video on screen
-        let videoRect = video.getBoundingClientRect(); // or canvas.getBoundingClientRect()
-        // 2. Determine Scale Factor (Video Resolution vs CSS Size)
-        let renderScale = canvas.width / videoRect.width; 
-        
-        // 3. The manual box is 200px wide in CSS.
-        let boxWidthInCanvasPixels = MANUAL_BOX_WIDTH_PX * renderScale;
-        
-        pixelsPerMM = boxWidthInCanvasPixels / CARD_REAL_WIDTH;
-        
-        document.getElementById('manual-guide').style.display = 'none';
-        goToStep(2);
-    }
-
-    function startMeasure() {
-        goToStep(3);
-        breadthBuffer = [];
-    }
-
-    function measureHead() {
-        if (!faceLandmarks) return;
-        
-        const left = faceLandmarks[234];
-        const right = faceLandmarks[454];
-        
-        // Distance in pixels
-        const distPx = Math.sqrt( 
-            Math.pow((left.x - right.x) * canvas.width, 2) + 
-            Math.pow((left.y - right.y) * canvas.height, 2) 
-        );
-
-        const distMM = distPx / pixelsPerMM;
-        
-        // Check Rotation (Nose X vs Ear Midpoint)
-        const nose = faceLandmarks[1];
-        const midEarX = (left.x + right.x) / 2;
-        const diff = Math.abs(nose.x - midEarX);
-        
-        const msg = document.getElementById('pose-msg');
-        if (diff > 0.05) { // Threshold for turning head
-             msg.innerText = "Please look straight ahead";
-             msg.style.color = "red";
-             return;
-        }
-        msg.innerText = "Perfect. Hold still.";
-        msg.style.color = "green";
-
-        // Stabilization
-        breadthBuffer.push(distMM);
-        if (breadthBuffer.length > 50) breadthBuffer.shift();
-
-        // Show Live
-        document.getElementById('live-val').innerText = distMM.toFixed(0) + " mm";
-
-        // Finalize
-        if (breadthBuffer.length === 50) {
-            let sum = breadthBuffer.reduce((a,b)=>a+b,0);
-            let avg = sum / breadthBuffer.length;
-            let variance = breadthBuffer.reduce((a,b)=>a+Math.pow(b-avg,2),0) / breadthBuffer.length;
-
-            if (variance < 0.5) {
-                document.getElementById('final-val').innerText = avg.toFixed(1) + " mm";
-                goToStep(4);
-            }
-        }
-    }
-
-    function goToStep(n) {
-        step = n;
-        ['step1','step1-manual','step2','step3','step4'].forEach(id => {
-            document.getElementById(id).style.display = 'none';
+        holistic.setOptions({
+            modelComplexity: 1,
+            smoothLandmarks: true,
+            minDetectionConfidence: 0.5,
+            minTrackingConfidence: 0.5,
+            refineFaceLandmarks: true // Important for Iris detection
         });
-        
-        if(n===1) document.getElementById('step1').style.display = 'block';
-        if(n===2) document.getElementById('step2').style.display = 'block';
-        if(n===3) document.getElementById('step3').style.display = 'block';
-        if(n===4) document.getElementById('step4').style.display = 'block';
+
+        holistic.onResults(onResults);
+
+        const camera = new Camera(videoElement, {
+            onFrame: async () => {
+                await holistic.send({image: videoElement});
+            },
+            width: 640,
+            height: 480
+        });
+
+        camera.start()
+            .then(() => {
+                loader.style.display = "none";
+                isScanning = true;
+            })
+            .catch(err => {
+                console.error(err);
+                statusMsg.innerText = "Camera Error: " + err.message;
+            });
     }
+
 </script>
 
 </body>

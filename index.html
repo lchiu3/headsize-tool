@@ -3,443 +3,383 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Smart Headphone Fitting</title>
+    <title>Headphone Fitting Tool v2</title>
     
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/control_utils/control_utils.js" crossorigin="anonymous"></script>
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/face_mesh.js" crossorigin="anonymous"></script>
-    
     <script async src="https://docs.opencv.org/4.5.4/opencv.js" onload="onOpenCvReady();" type="text/javascript"></script>
 
     <style>
-        body {
-            font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
-            background-color: #f0f2f5;
-            margin: 0;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            height: 100vh;
-            color: #333;
+        body { font-family: sans-serif; background: #f0f2f5; margin: 0; display: flex; height: 100vh; justify-content: center; align-items: center; }
+        
+        .container {
+            position: relative; width: 640px; height: 480px; background: #000; border-radius: 20px; overflow: hidden; box-shadow: 0 20px 50px rgba(0,0,0,0.2);
         }
 
-        .main-container {
-            position: relative;
-            width: 640px;
-            max-width: 95vw;
-            height: 520px;
-            background: white;
-            border-radius: 24px;
-            box-shadow: 0 10px 25px rgba(0,0,0,0.1);
-            overflow: hidden;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-        }
+        /* Video/Canvas Stack */
+        video { display: none; }
+        canvas { width: 100%; height: 100%; transform: scaleX(-1); } /* Mirror */
 
-        #video-wrapper {
-            position: relative;
-            width: 100%;
-            height: 100%;
-            background: #000;
-            overflow: hidden;
-        }
-
-        video {
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
-            /* transform: scaleX(-1); Mirroring is handled in canvas for OpenCV compatibility */ 
-            display: none; /* We draw everything to canvas now */
-        }
-
-        canvas {
-            width: 100%;
-            height: 100%;
-            transform: scaleX(-1); /* Mirror display for user comfort */
-        }
-
+        /* UI Overlay */
         .overlay {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            display: flex;
-            flex-direction: column;
-            justify-content: space-between;
-            padding: 20px;
-            box-sizing: border-box;
-            pointer-events: none;
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            pointer-events: none; display: flex; flex-direction: column; justify-content: space-between; padding: 20px; box-sizing: border-box;
         }
 
-        .instruction-box {
-            background: rgba(255, 255, 255, 0.95);
-            padding: 20px;
-            border-radius: 12px;
-            text-align: center;
-            pointer-events: auto;
-            margin-top: 10px;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-            max-width: 80%;
-            align-self: center;
+        .box {
+            background: rgba(255,255,255,0.9); padding: 15px; border-radius: 10px; text-align: center; pointer-events: auto; align-self: center;
+            max-width: 80%; box-shadow: 0 4px 10px rgba(0,0,0,0.2);
         }
 
-        h2 { margin: 0 0 10px 0; font-size: 1.2rem; color: #2c3e50; }
-        p { margin: 0 0 10px 0; font-size: 0.95rem; color: #555; }
+        h2 { margin: 0 0 5px 0; font-size: 1.1rem; }
+        p { margin: 0 0 10px 0; font-size: 0.9rem; color: #555; }
+        button { background: #007bff; color: white; border: none; padding: 8px 16px; border-radius: 5px; cursor: pointer; font-size: 1rem; }
+        button:hover { background: #0056b3; }
+
+        /* Manual Guide Box */
+        #manual-guide {
+            position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+            width: 200px; height: 126px; /* Approx card ratio */
+            border: 4px dashed #00FF00; border-radius: 8px;
+            display: none; align-items: center; justify-content: center;
+            box-shadow: 0 0 0 9999px rgba(0,0,0,0.5); /* Dim everything else */
+        }
         
-        .btn {
-            background: #007bff;
-            color: white;
-            border: none;
-            padding: 10px 24px;
-            border-radius: 8px;
-            font-size: 1rem;
-            cursor: pointer;
-            transition: background 0.2s;
+        /* Debug View */
+        #debug-canvas {
+            position: absolute; bottom: 10px; left: 10px; width: 120px; height: 90px;
+            border: 2px solid white; background: black; transform: scaleX(-1); display: none;
         }
-        .btn:disabled { background: #ccc; cursor: wait; }
-
-        .loader {
-            border: 4px solid #f3f3f3;
-            border-top: 4px solid #3498db;
-            border-radius: 50%;
-            width: 20px;
-            height: 20px;
-            animation: spin 1s linear infinite;
-            display: inline-block;
-            vertical-align: middle;
-            margin-right: 10px;
-        }
-
-        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
-
-        .step { display: none; }
-        .step.active { display: block; }
         
-        /* Loading Screen */
-        #loading-screen {
-            position: absolute;
-            top:0; left:0; width:100%; height:100%;
-            background: white;
-            z-index: 100;
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-            align-items: center;
-        }
-
+        /* Loading */
+        #loading { position: absolute; top:0; left:0; width:100%; height:100%; background:white; z-index:99; display:flex; justify-content:center; align-items:center; }
     </style>
 </head>
 <body>
 
-<div class="main-container">
-    <div id="video-wrapper">
-        <video id="input_video" playsinline></video>
-        <canvas id="output_canvas"></canvas>
-    </div>
+<div class="container">
+    <video id="input_video" playsinline></video>
+    <canvas id="output_canvas"></canvas>
+    
+    <canvas id="debug-canvas"></canvas>
 
-    <div id="loading-screen">
-        <div class="loader" style="width: 40px; height: 40px;"></div>
-        <p style="margin-top:20px">Loading Vision Engine...</p>
+    <div id="loading">Loading Vision Engine...</div>
+
+    <div id="manual-guide">
+        <div style="color:white; font-weight:bold; text-shadow:0 1px 3px black;">Fit Card Here</div>
     </div>
 
     <div class="overlay">
-        <div id="step1" class="step active instruction-box">
-            <h2>Step 1: Auto-Calibration</h2>
-            <p>Hold a standard card (ID/Credit Card) <strong>against your forehead</strong>.</p>
-            <p style="font-size:0.85rem; color:#666;">Ensure good lighting. We will auto-detect the card and hide the details.</p>
-            <div id="calibration-status" style="font-weight:bold; color:#e67e22;">Searching for card...</div>
+        <div id="step1" class="box">
+            <h2>Step 1: Calibration</h2>
+            
+            <p>Hold a standard card against your forehead.</p>
+            <div id="status-text" style="color:#e67e22; font-weight:bold; margin-bottom:10px;">Looking for card shape...</div>
+            
+            <div style="display:flex; gap:10px; justify-content:center;">
+                <button onclick="toggleDebug()">Show/Hide Debug View</button>
+                <button onclick="switchToManual()" style="background:#6c757d;">Switch to Manual Mode</button>
+            </div>
         </div>
 
-        <div id="step2" class="step instruction-box">
-             <h2>Step 2: Position Fingers</h2>
-            <p>Place your index fingers on your left and right <strong>Tragus</strong> (the small bump in front of your ear).</p>
-            <button class="btn" onclick="startMeasurement()">OK, Start Measuring</button>
+        <div id="step1-manual" class="box" style="display:none;">
+            <h2>Manual Mode</h2>
+            <p>Align card exactly inside the dashed box.</p>
+            <button onclick="confirmManual()">Card is Aligned</button>
         </div>
 
-        <div id="step3" class="step instruction-box">
-            <h2>Step 3: Measuring Head...</h2>
-            <p id="pose-feedback">Keep your head straight...</p>
-            <div id="live-breadth" style="font-size:1.5rem; font-weight:bold; color:#007bff;">...</div>
+        <div id="step2" class="box" style="display:none;">
+             
+
+[Image of tragus ear anatomy]
+
+            <h2>Step 2: Fingers on Tragus</h2>
+            <p>Place index fingers on the small bumps (Tragus) in front of your ears.</p>
+            <button onclick="startMeasure()">Start Measuring</button>
         </div>
 
-        <div id="step4" class="step instruction-box">
-            <h2>Measurement Complete!</h2>
-            <p>Your Head Breadth:</p>
-            <div id="final-result" style="font-size:2.2rem; font-weight:bold; color:#27ae60;">0 mm</div>
-            <button class="btn" onclick="location.reload()">Restart</button>
+        <div id="step3" class="box" style="display:none;">
+            <h2>Step 3: Hold Still</h2>
+            <h1 id="live-val">0 mm</h1>
+            <p id="pose-msg">Checking rotation...</p>
+        </div>
+
+        <div id="step4" class="box" style="display:none;">
+            <h2>Done!</h2>
+            <p>Head Breadth:</p>
+            <h1 id="final-val" style="color:#28a745; margin:0;">0 mm</h1>
+            <br>
+            <button onclick="location.reload()">Measure Again</button>
         </div>
     </div>
 </div>
 
 <script>
-    let cvReady = false;
-    let video, canvas, ctx;
-    let currentStep = 1;
+    // --- Config ---
+    const CARD_REAL_WIDTH = 85.6; // mm
+    const MANUAL_BOX_WIDTH_PX = 200; // The pixel width of our CSS #manual-guide box
+
+    // --- State ---
+    let mode = 'auto'; // 'auto' or 'manual'
     let pixelsPerMM = 0;
-    
-    // Stability buffers
-    let scaleBuffer = []; 
+    let step = 1;
+    let cvReady = false;
+    let showDebug = false;
+
+    // Buffers
+    let autoScaleBuffer = [];
     let breadthBuffer = [];
-    let isScaleLocked = false;
 
-    // Constants
-    const CARD_ASPECT_RATIO = 85.6 / 53.98; // ~1.585
-    const ASPECT_TOLERANCE = 0.2; // Allow some tilt
-    const CARD_REAL_WIDTH = 85.6;
+    // Elements
+    const video = document.getElementById('input_video');
+    const canvas = document.getElementById('output_canvas');
+    const ctx = canvas.getContext('2d');
+    const debugCanvas = document.getElementById('debug-canvas');
+    const debugCtx = debugCanvas.getContext('2d');
 
-    // --- Initialization ---
+    // --- Init ---
     function onOpenCvReady() {
         cvReady = true;
-        document.getElementById('loading-screen').style.display = 'none';
-        initCamera();
-    }
-
-    function initCamera() {
-        video = document.getElementById('input_video');
-        canvas = document.getElementById('output_canvas');
-        ctx = canvas.getContext('2d');
-
+        document.getElementById('loading').style.display = 'none';
+        
         const camera = new Camera(video, {
-            onFrame: async () => {
-                // We handle processing in a custom loop to combine OpenCV + FaceMesh
-                // But FaceMesh needs to be fed. 
-                // We will use the 'processVideo' loop for drawing and CV logic.
-                await processVideo(); 
-            },
-            width: 640,
-            height: 480
+            onFrame: async () => { await processFrame(); },
+            width: 640, height: 480
         });
         camera.start();
     }
 
-    // --- Face Mesh Setup ---
+    // --- Face Mesh ---
     const faceMesh = new FaceMesh({locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/${file}`});
     faceMesh.setOptions({maxNumFaces: 1, refineLandmarks: true, minDetectionConfidence: 0.5, minTrackingConfidence: 0.5});
-    faceMesh.onResults(onFaceResults);
-
-    // Global face results storage
-    let currentLandmarks = null;
-    function onFaceResults(results) {
-        if(results.multiFaceLandmarks && results.multiFaceLandmarks.length > 0) {
-            currentLandmarks = results.multiFaceLandmarks[0];
-        } else {
-            currentLandmarks = null;
+    
+    let faceLandmarks = null;
+    faceMesh.onResults(results => {
+        if (results.multiFaceLandmarks && results.multiFaceLandmarks.length > 0) {
+            faceLandmarks = results.multiFaceLandmarks[0];
         }
-    }
+    });
 
-    // --- Main Processing Loop ---
-    let srcMat, dstMat, grayMat, contours, hierarchy; // OpenCV Mats
+    // --- Main Loop ---
+    let src, dst, gray;
 
-    async function processVideo() {
+    async function processFrame() {
         if (!cvReady) return;
+        
+        // Resize canvas to match video
+        canvas.width = video.videoWidth; 
+        canvas.height = video.videoHeight;
 
-        // Ensure canvas matches video size
-        if (canvas.width !== video.videoWidth) {
-            canvas.width = video.videoWidth;
-            canvas.height = video.videoHeight;
+        // Init OpenCV mats once
+        if (!src) {
+            src = new cv.Mat(video.videoHeight, video.videoWidth, cv.CV_8UC4);
+            dst = new cv.Mat(); 
+            gray = new cv.Mat();
         }
 
-        // 1. Send frame to FaceMesh (Async)
+        // Send to Facemesh
         await faceMesh.send({image: video});
 
-        // 2. Prepare OpenCV Mats (Initialize once)
-        if (!srcMat) {
-            srcMat = new cv.Mat(video.videoHeight, video.videoWidth, cv.CV_8UC4);
-            dstMat = new cv.Mat(video.videoHeight, video.videoWidth, cv.CV_8UC4);
-            grayMat = new cv.Mat();
-            contours = new cv.MatVector();
-            hierarchy = new cv.Mat();
-        }
-
-        // Draw video to canvas first (for the user to see themselves)
+        // Draw basic video
         ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-        
-        // Load canvas data into OpenCV Mat
-        // Optimization: For card detection, we can just read the context, 
-        // but reading from canvas is slow.
-        // Faster: Draw video to hidden canvas or use video directly if supported.
-        // For this prototype, we read back from canvas (easiest logic).
-        let imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-        srcMat.data.set(imageData.data);
 
-        // --- STEP 1 LOGIC: Card Detection ---
-        if (currentStep === 1 && !isScaleLocked) {
-            detectCard(srcMat);
-        } else if (currentStep === 1 && isScaleLocked) {
-             // Show success message briefly before moving on
-             ctx.fillStyle = "rgba(46, 204, 113, 0.3)";
-             ctx.fillRect(0,0, canvas.width, canvas.height);
-             document.getElementById('calibration-status').innerText = "Card Detected! Scale Locked.";
-             setTimeout(() => { if(currentStep===1) goToStep(2); }, 1500);
-        }
+        // --- STEP 1: AUTO CALIBRATION ---
+        if (step === 1 && mode === 'auto') {
+            // Read image for OpenCV
+            let imgData = ctx.getImageData(0,0, canvas.width, canvas.height);
+            src.data.set(imgData.data);
+            
+            // Edge Detection
+            cv.cvtColor(src, gray, cv.COLOR_RGBA2GRAY);
+            cv.GaussianBlur(gray, gray, new cv.Size(5, 5), 0);
+            cv.Canny(gray, dst, 30, 100); // Thresholds: Lower=more edges, Higher=cleaner
 
-        // --- STEP 3 LOGIC: Head Measurement ---
-        if (currentStep === 3 && currentLandmarks) {
-            measureHead(currentLandmarks);
-        }
+            // Debug View
+            if (showDebug) {
+                cv.imshow('debug-canvas', dst);
+            }
 
-        // --- VISUALS: Draw Landmarks ---
-        if (currentLandmarks) {
-            drawFacePoints(currentLandmarks);
-        }
-    }
+            // Find Contours
+            let contours = new cv.MatVector();
+            let hierarchy = new cv.Mat();
+            cv.findContours(dst, contours, hierarchy, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_SIMPLE);
 
-    function detectCard(src) {
-        cv.cvtColor(src, grayMat, cv.COLOR_RGBA2GRAY, 0);
-        cv.Canny(grayMat, dstMat, 50, 100, 3, false); // Edge detection
-        
-        // Find contours
-        cv.findContours(dstMat, contours, hierarchy, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_SIMPLE);
+            let bestRect = null;
+            let maxArea = 0;
 
-        let maxRect = null;
-        let maxArea = 0;
+            for (let i = 0; i < contours.size(); ++i) {
+                let cnt = contours.get(i);
+                let area = cv.contourArea(cnt);
+                if (area < 4000) continue; // Too small
 
-        for (let i = 0; i < contours.size(); ++i) {
-            let cnt = contours.get(i);
-            let area = cv.contourArea(cnt);
-            if (area < 2000) continue; // Ignore small noise
+                let peri = cv.arcLength(cnt, true);
+                let approx = new cv.Mat();
+                cv.approxPolyDP(cnt, approx, 0.02 * peri, true);
 
-            // Approx polygon
-            let peri = cv.arcLength(cnt, true);
-            let approx = new cv.Mat();
-            cv.approxPolyDP(cnt, approx, 0.02 * peri, true);
-
-            if (approx.rows === 4) { // Rectangle-ish
-                let rect = cv.boundingRect(approx);
-                let aspectRatio = rect.width / rect.height;
-
-                // Check ratio (Standard Card is ~1.58)
-                // We accept landscape (1.58) 
-                if (aspectRatio > (CARD_ASPECT_RATIO - ASPECT_TOLERANCE) && 
-                    aspectRatio < (CARD_ASPECT_RATIO + ASPECT_TOLERANCE)) {
+                if (approx.rows === 4) {
+                    let rect = cv.boundingRect(approx);
+                    let ratio = rect.width / rect.height;
                     
-                    if (area > maxArea) {
-                        maxArea = area;
-                        maxRect = rect;
+                    // Card is ~1.58. Allow 1.4 to 1.8
+                    if (ratio > 1.4 && ratio < 1.8) {
+                        if (area > maxArea) {
+                            maxArea = area;
+                            bestRect = rect;
+                        }
                     }
                 }
+                approx.delete();
             }
-            approx.delete();
+
+            if (bestRect) {
+                // Draw detected box
+                ctx.lineWidth = 4;
+                ctx.strokeStyle = '#00FF00';
+                ctx.strokeRect(bestRect.x, bestRect.y, bestRect.width, bestRect.height);
+                
+                // Privacy Blur
+                ctx.fillStyle = 'rgba(255,255,255,0.9)';
+                ctx.fillRect(bestRect.x, bestRect.y, bestRect.width, bestRect.height);
+                
+                // Save scale
+                let currentScale = bestRect.width / CARD_REAL_WIDTH;
+                autoScaleBuffer.push(currentScale);
+                if(autoScaleBuffer.length > 20) autoScaleBuffer.shift();
+                
+                checkAutoLock();
+            }
+
+            contours.delete(); hierarchy.delete();
         }
 
-        if (maxRect) {
-            // Draw Dynamic Box
-            ctx.beginPath();
-            ctx.lineWidth = 4;
-            ctx.strokeStyle = "#00FF00";
-            ctx.rect(maxRect.x, maxRect.y, maxRect.width, maxRect.height);
-            ctx.stroke();
+        // --- STEP 3: MEASURE HEAD ---
+        if (step === 3 && faceLandmarks) {
+            measureHead();
+        }
 
-            // PRIVACY BLUR: Fill the rect with white/blur
-            ctx.fillStyle = "rgba(255, 255, 255, 0.85)";
-            ctx.fill();
-            
-            // Text inside box
-            ctx.fillStyle = "#333";
-            ctx.font = "16px Arial";
-            ctx.fillText("Scanning...", maxRect.x + 10, maxRect.y + 30);
-
-            // Calculate Scale
-            let currentPixelsPerMM = maxRect.width / CARD_REAL_WIDTH;
-            scaleBuffer.push(currentPixelsPerMM);
-            if(scaleBuffer.length > 20) scaleBuffer.shift();
-
-            // Check stability
-            checkScaleStability();
-        } else {
-             document.getElementById('calibration-status').innerText = "Please hold card against forehead...";
+        // Draw Landmarks Helper
+        if (faceLandmarks && step > 1) {
+             const left = faceLandmarks[234];
+             const right = faceLandmarks[454];
+             ctx.fillStyle = 'cyan';
+             ctx.beginPath(); ctx.arc(left.x*canvas.width, left.y*canvas.height, 5, 0, 2*Math.PI); ctx.fill();
+             ctx.beginPath(); ctx.arc(right.x*canvas.width, right.y*canvas.height, 5, 0, 2*Math.PI); ctx.fill();
         }
     }
 
-    function checkScaleStability() {
-        if (scaleBuffer.length < 20) return;
+    function checkAutoLock() {
+        if (autoScaleBuffer.length < 15) return;
         
-        // Calc avg
-        let sum = scaleBuffer.reduce((a,b) => a+b, 0);
-        let avg = sum / scaleBuffer.length;
-        
-        // Calc variance
-        let variance = scaleBuffer.reduce((a,b) => a + Math.pow(b-avg, 2), 0) / scaleBuffer.length;
+        // Simple variance check
+        let sum = autoScaleBuffer.reduce((a,b)=>a+b, 0);
+        let avg = sum / autoScaleBuffer.length;
+        let variance = autoScaleBuffer.reduce((a,b)=>a + Math.pow(b-avg,2), 0) / autoScaleBuffer.length;
 
-        // If variance is low, we have a lock
-        if (variance < 0.5) {
+        if (variance < 0.2) {
             pixelsPerMM = avg;
-            isScaleLocked = true;
-            document.getElementById('calibration-status').innerText = "Locked!";
+            document.getElementById('status-text').innerText = "Card Locked! Success.";
+            setTimeout(() => { goToStep(2); }, 1000);
         }
     }
 
-    function measureHead(landmarks) {
-        // Tragus approx (using Cheek/Ear landmarks)
-        // 234 (Left Ear) - 454 (Right Ear)
-        const leftPt = landmarks[234];
-        const rightPt = landmarks[454];
+    // --- UI Actions ---
 
-        // Check Rotation (Yaw)
-        const nose = landmarks[1];
-        const distL = Math.abs(nose.x - leftPt.x);
-        const distR = Math.abs(nose.x - rightPt.x);
-        const ratio = distL / (distR + 0.001);
+    function toggleDebug() {
+        showDebug = !showDebug;
+        document.getElementById('debug-canvas').style.display = showDebug ? 'block' : 'none';
+    }
+
+    function switchToManual() {
+        mode = 'manual';
+        document.getElementById('step1').style.display = 'none';
+        document.getElementById('step1-manual').style.display = 'block';
+        document.getElementById('manual-guide').style.display = 'flex';
+        // Hide Debug
+        document.getElementById('debug-canvas').style.display = 'none';
+    }
+
+    function confirmManual() {
+        // In manual mode, we assume the user matched the CSS box width to the card
+        // We need to relate CSS pixels to Canvas pixels.
         
-        const feedback = document.getElementById('pose-feedback');
+        // 1. Get size of video on screen
+        let videoRect = video.getBoundingClientRect(); // or canvas.getBoundingClientRect()
+        // 2. Determine Scale Factor (Video Resolution vs CSS Size)
+        let renderScale = canvas.width / videoRect.width; 
         
-        if (ratio < 0.6 || ratio > 1.6) {
-            feedback.innerText = "Please look straight ahead!";
-            feedback.style.color = "red";
-            return;
+        // 3. The manual box is 200px wide in CSS.
+        let boxWidthInCanvasPixels = MANUAL_BOX_WIDTH_PX * renderScale;
+        
+        pixelsPerMM = boxWidthInCanvasPixels / CARD_REAL_WIDTH;
+        
+        document.getElementById('manual-guide').style.display = 'none';
+        goToStep(2);
+    }
+
+    function startMeasure() {
+        goToStep(3);
+        breadthBuffer = [];
+    }
+
+    function measureHead() {
+        if (!faceLandmarks) return;
+        
+        const left = faceLandmarks[234];
+        const right = faceLandmarks[454];
+        
+        // Distance in pixels
+        const distPx = Math.sqrt( 
+            Math.pow((left.x - right.x) * canvas.width, 2) + 
+            Math.pow((left.y - right.y) * canvas.height, 2) 
+        );
+
+        const distMM = distPx / pixelsPerMM;
+        
+        // Check Rotation (Nose X vs Ear Midpoint)
+        const nose = faceLandmarks[1];
+        const midEarX = (left.x + right.x) / 2;
+        const diff = Math.abs(nose.x - midEarX);
+        
+        const msg = document.getElementById('pose-msg');
+        if (diff > 0.05) { // Threshold for turning head
+             msg.innerText = "Please look straight ahead";
+             msg.style.color = "red";
+             return;
         }
-        feedback.innerText = "Great! Hold still...";
-        feedback.style.color = "green";
+        msg.innerText = "Perfect. Hold still.";
+        msg.style.color = "green";
 
-        // Calculate Dist
-        const dx = (leftPt.x - rightPt.x) * canvas.width;
-        const dy = (leftPt.y - rightPt.y) * canvas.height;
-        const distPx = Math.sqrt(dx*dx + dy*dy);
+        // Stabilization
+        breadthBuffer.push(distMM);
+        if (breadthBuffer.length > 50) breadthBuffer.shift();
 
-        const mm = distPx / pixelsPerMM;
+        // Show Live
+        document.getElementById('live-val').innerText = distMM.toFixed(0) + " mm";
 
-        breadthBuffer.push(mm);
-        if (breadthBuffer.length > 40) breadthBuffer.shift();
+        // Finalize
+        if (breadthBuffer.length === 50) {
+            let sum = breadthBuffer.reduce((a,b)=>a+b,0);
+            let avg = sum / breadthBuffer.length;
+            let variance = breadthBuffer.reduce((a,b)=>a+Math.pow(b-avg,2),0) / breadthBuffer.length;
 
-        // Display Live
-        document.getElementById('live-breadth').innerText = Math.round(mm) + " mm";
-
-        // Auto-Finish if stable
-        if (breadthBuffer.length === 40) {
-            let bSum = breadthBuffer.reduce((a,b) => a+b, 0);
-            let bAvg = bSum / breadthBuffer.length;
-            let bVar = breadthBuffer.reduce((a,b) => a + Math.pow(b-bAvg, 2), 0) / breadthBuffer.length;
-
-            if (bVar < 1.0) { // Very stable
+            if (variance < 0.5) {
+                document.getElementById('final-val').innerText = avg.toFixed(1) + " mm";
                 goToStep(4);
-                document.getElementById('final-result').innerText = bAvg.toFixed(1) + " mm";
             }
         }
-    }
-
-    function drawFacePoints(landmarks) {
-        // Just draw the measuring points for confidence
-        ctx.fillStyle = "blue";
-        const pts = [234, 454]; // Tragus areas
-        pts.forEach(idx => {
-            let p = landmarks[idx];
-            ctx.beginPath();
-            ctx.arc(p.x * canvas.width, p.y * canvas.height, 5, 0, 2*Math.PI);
-            ctx.fill();
-        });
-    }
-
-    function startMeasurement() {
-        goToStep(3);
-        breadthBuffer = []; // Reset
     }
 
     function goToStep(n) {
-        document.querySelectorAll('.step').forEach(s => s.classList.remove('active'));
-        document.getElementById('step'+n).classList.add('active');
-        currentStep = n;
+        step = n;
+        ['step1','step1-manual','step2','step3','step4'].forEach(id => {
+            document.getElementById(id).style.display = 'none';
+        });
+        
+        if(n===1) document.getElementById('step1').style.display = 'block';
+        if(n===2) document.getElementById('step2').style.display = 'block';
+        if(n===3) document.getElementById('step3').style.display = 'block';
+        if(n===4) document.getElementById('step4').style.display = 'block';
     }
 </script>
 

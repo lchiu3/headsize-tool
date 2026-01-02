@@ -17,7 +17,7 @@
     <style>
         :root {
             --primary: #6366f1;
-            --bg: #e0e2e5; /* Slightly darker to make the white card pop */
+            --bg: #e0e2e5;
             --card-bg: #ffffff;
             --text: #1f2937;
             --danger: #ef4444;
@@ -25,7 +25,6 @@
         }
 
         body {
-            /* Requested Font Stack */
             font-family: 'Poppins', 'Brown', 'Futura', 'Josefin Sans', 'M Sans', sans-serif;
             background-color: var(--bg);
             display: flex;
@@ -37,18 +36,15 @@
         }
 
         .container {
-            /* Layout: 16:9 Landscape, Bigger Width */
             width: 90%;
             max-width: 1200px;
             aspect-ratio: 16/9;
-            max-height: 90vh; /* Ensure it fits vertically on standard laptops */
-            
+            max-height: 90vh;
             background: var(--card-bg);
             border-radius: 32px;
             box-shadow: 0 20px 50px rgba(0, 0, 0, 0.1);
             padding: 40px;
             box-sizing: border-box;
-            
             display: flex;
             flex-direction: column;
             align-items: center;
@@ -58,102 +54,69 @@
         }
 
         h1 { 
-            font-size: 2.5rem; 
+            font-size: 2.8rem; 
             color: var(--text); 
             margin-bottom: 20px; 
             font-weight: 700;
-            letter-spacing: -0.5px;
+            letter-spacing: -1px;
+            text-align: center;
         }
         
         p { 
             color: #6b7280; 
-            font-size: 1.1rem;
+            font-size: 1.2rem;
             line-height: 1.6; 
-            margin-bottom: 30px; 
-            max-width: 600px;
+            margin-bottom: 40px; 
+            max-width: 650px;
+            text-align: center;
         }
 
-        /* Buttons Scaled Up */
         .btn {
             background-color: var(--primary);
             color: white;
             border: none;
-            padding: 16px 32px;
+            padding: 18px 40px;
             border-radius: 16px;
-            font-size: 1.1rem;
+            font-size: 1.2rem;
             cursor: pointer;
             font-weight: 600;
             transition: all 0.2s ease;
             margin: 10px;
             box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
         }
-        .btn:hover { transform: translateY(-2px); box-shadow: 0 6px 15px rgba(99, 102, 241, 0.4); }
+        .btn:hover { transform: translateY(-3px); box-shadow: 0 8px 20px rgba(99, 102, 241, 0.4); }
         .btn:active { transform: translateY(0); }
         .btn-outline { background: transparent; border: 2px solid var(--primary); color: var(--primary); box-shadow: none; }
 
         /* Step Visibility Control */
-        .step { display: none; width: 100%; height: 100%; flex-direction: column; align-items: center; justify-content: center; animation: fadeIn 0.4s ease; }
+        .step { display: none; width: 100%; height: 100%; flex-direction: column; align-items: center; justify-content: center; animation: fadeIn 0.5s ease; }
         .step.active { display: flex; }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
 
-        /* Step 1: Gender */
+        /* Step 1 & 2 Specifics */
         .gender-options { display: flex; gap: 20px; flex-wrap: wrap; justify-content: center; }
         .ipd-input-group { margin-top: 20px; display: none; text-align: center; }
-        .ipd-input-group input { padding: 12px; border: 2px solid #ddd; border-radius: 12px; width: 100px; text-align: center; font-size: 1.2rem; margin-bottom: 10px; display: block; margin: 10px auto;}
+        .ipd-input-group input { padding: 12px; border: 2px solid #ddd; border-radius: 12px; width: 100px; text-align: center; font-size: 1.2rem; margin: 10px auto; display: block;}
 
-        /* Step 2: Graphic (Scaled Up) */
+        /* Graphic */
         .instruction-graphic {
-            width: 260px;
-            height: 260px;
-            background: #e0e7ff;
-            border-radius: 50%;
-            margin: 30px auto;
-            position: relative;
-            display: flex;
-            justify-content: center;
-            align-items: center;
+            width: 260px; height: 260px; background: #e0e7ff; border-radius: 50%;
+            margin: 30px auto; position: relative; display: flex; justify-content: center; align-items: center;
         }
-        .head-shape {
-            width: 130px;
-            height: 160px;
-            border: 5px solid var(--primary);
-            border-radius: 50px;
-            position: relative;
-            background: white;
-        }
-        .finger-dot {
-            width: 24px;
-            height: 24px;
-            background: var(--danger);
-            border-radius: 50%;
-            position: absolute;
-            top: 50%;
-            transform: translateY(-50%);
-            box-shadow: 0 0 0 4px rgba(239, 68, 68, 0.3);
-        }
+        .head-shape { width: 130px; height: 160px; border: 5px solid var(--primary); border-radius: 50px; background: white; }
+        .finger-dot { width: 24px; height: 24px; background: var(--danger); border-radius: 50%; position: absolute; top: 50%; transform: translateY(-50%); box-shadow: 0 0 0 4px rgba(239, 68, 68, 0.3); }
         .left-finger { left: -40px; }
         .right-finger { right: -40px; }
-        .arrow-line {
-            position: absolute;
-            top: 50%;
-            left: -30px;
-            right: -30px;
-            height: 2px;
-            background: var(--text);
-            z-index: -1;
-        }
-        .arrow-line::before, .arrow-line::after {
-            content: ''; position: absolute; top: -4px; width: 0; height: 0; 
-            border-top: 5px solid transparent; border-bottom: 5px solid transparent;
-        }
-        .arrow-line::before { left: 0; border-right: 8px solid var(--text); }
-        .arrow-line::after { right: 0; border-left: 8px solid var(--text); }
+        .arrow-line { position: absolute; top: 50%; left: -30px; right: -30px; height: 2px; background: var(--text); z-index: -1; }
 
-        /* Step 3: Camera (Scaled Up) */
+        /* Step 3: Camera */
         .camera-container {
             position: relative;
-            height: 80%; /* Takes up most of the 16:9 container height */
-            aspect-ratio: 4/3; /* Keep camera natural ratio */
+            height: 85%;
+            aspect-ratio: 4/3;
             border-radius: 24px;
             overflow: hidden;
             background: #000;
@@ -172,9 +135,9 @@
         .status-pill {
             background: rgba(255, 255, 255, 0.2);
             color: white;
-            padding: 10px 24px;
+            padding: 12px 28px;
             border-radius: 30px;
-            font-size: 1.1rem;
+            font-size: 1.2rem;
             align-self: center;
             backdrop-filter: blur(10px);
             border: 1px solid rgba(255,255,255,0.3);
@@ -184,14 +147,24 @@
         .status-pill.warning { background: rgba(239, 68, 68, 0.85); border-color: #ef4444; }
         .status-pill.success { background: rgba(16, 185, 129, 0.85); border-color: #10b981; }
 
+        /* PILL SHAPE GHOST */
         .ghost-overlay {
-            position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
-            width: 35%; height: 55%; /* Responsive to camera box */
-            border: 3px dashed rgba(255, 255, 255, 0.6);
-            border-radius: 50% 50% 50% 50% / 60% 60% 40% 40%;
+            position: absolute; 
+            top: 50%; 
+            left: 50%; 
+            transform: translate(-50%, -50%);
+            width: 320px;  /* Fixed width for pill */
+            height: 480px; /* Fixed height for pill */
+            max-height: 70%; /* Responsive cap */
+            
+            /* The Pill Shape */
+            border-radius: 9999px; 
+            border: 4px dashed rgba(255, 255, 255, 0.7);
+            
             z-index: 10;
-            box-shadow: 0 0 0 9999px rgba(0,0,0,0.5); /* Dim the outside */
+            box-shadow: 0 0 0 9999px rgba(0,0,0,0.5); /* Dimming mask */
         }
+        
         .crosshair {
             position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
             width: 30px; height: 30px; opacity: 0.8;
@@ -201,8 +174,8 @@
         .crosshair::after { top: 0; left: 13px; width: 4px; height: 30px; }
 
         .progress-bar {
-            height: 8px; background: rgba(255,255,255,0.3);
-            width: 60%; align-self: center; border-radius: 4px;
+            height: 10px; background: rgba(255,255,255,0.3);
+            width: 60%; align-self: center; border-radius: 5px;
             overflow: hidden; margin-top: auto; backdrop-filter: blur(4px);
         }
         .progress-fill { height: 100%; width: 0%; background: var(--success); transition: width 0.2s linear; }
@@ -213,9 +186,8 @@
             display: flex; flex-direction: column; justify-content: center; align-items: center;
             z-index: 50; display: none;
         }
-        .result-value { font-size: 5rem; font-weight: 700; color: var(--primary); margin: 10px 0; }
+        .result-value { font-size: 6rem; font-weight: 700; color: var(--primary); margin: 10px 0; }
         
-        /* Spinner */
         .loader {
             border: 5px solid #f3f3f3; border-top: 5px solid var(--primary);
             border-radius: 50%; width: 40px; height: 40px;
@@ -229,9 +201,19 @@
 
 <div class="container">
     
-    <div id="step1" class="step active">
-        <h1>Let's Measure Your Head Size</h1>
-        <p>To calibrate the camera, we need your average eye distance (IPD). <br>Please select your gender or enter a custom value.</p>
+    <div id="step0" class="step active">
+        <h1>Headphone Sizing Tool</h1>
+        <p>This tool helps us design the perfect fit for you.<br>
+        We will use your webcam to measure your head breadth accurately.</p>
+        
+        <button class="btn" onclick="startApp()">
+            Get Started <span>&rarr;</span>
+        </button>
+    </div>
+
+    <div id="step1" class="step">
+        <h1>Calibration</h1>
+        <p>To measure accurately, we need your average eye distance (IPD). <br>Please select your gender or enter a custom value.</p>
         
         <div class="gender-options">
             <button class="btn" onclick="setIPD(64, 'Male')">Male</button>
@@ -240,7 +222,7 @@
         </div>
 
         <div class="ipd-input-group" id="customIPDGroup">
-            <p style="margin-bottom: 5px; font-size: 0.9rem;">Enter IPD (mm):</p>
+            <p>Enter IPD (mm):</p>
             <input type="number" id="manualIPD" value="63">
             <button class="btn" onclick="setIPD(document.getElementById('manualIPD').value, 'Custom')">Next</button>
         </div>
@@ -296,6 +278,7 @@
     const STABILITY_THRESHOLD = 2.0; 
     
     // --- DOM Elements ---
+    const step0 = document.getElementById('step0');
     const step1 = document.getElementById('step1');
     const step2 = document.getElementById('step2');
     const step3 = document.getElementById('step3');
@@ -306,6 +289,11 @@
     const loader = document.getElementById('loader');
 
     // --- Steps Logic ---
+    function startApp() {
+        step0.classList.remove('active');
+        step1.classList.add('active');
+    }
+
     function setIPD(value, type) {
         userIPD = parseFloat(value);
         console.log(`IPD set to ${userIPD} (${type})`);
@@ -343,7 +331,7 @@
         canvasCtx.clearRect(0, 0, canvasElement.width, canvasElement.height);
         canvasCtx.lineWidth = 3;
 
-        let status = "Align Face in Box";
+        let status = "Align Face in Pill";
         let isStable = false;
         let isAligned = false;
         let warningClass = "";

@@ -91,17 +91,14 @@
         .btn:active { transform: translateY(0); }
         .btn-outline { background: transparent; border: 2px solid var(--primary); color: var(--primary); box-shadow: none; }
 
-        /* Step Visibility Control */
         .step { display: none; width: 100%; height: 100%; flex-direction: column; align-items: center; justify-content: center; animation: fadeIn 0.5s ease; }
         .step.active { display: flex; }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
 
-        /* Step 1 & 2 Specifics */
         .gender-options { display: flex; gap: 20px; flex-wrap: wrap; justify-content: center; }
         .ipd-input-group { margin-top: 20px; display: none; text-align: center; }
         .ipd-input-group input { padding: 12px; border: 2px solid #ddd; border-radius: 12px; width: 100px; text-align: center; font-size: 1.2rem; margin: 10px auto; display: block;}
 
-        /* Graphic */
         .instruction-graphic {
             width: 260px; height: 260px; background: #e0e7ff; border-radius: 50%;
             margin: 30px auto; position: relative; display: flex; justify-content: center; align-items: center;
@@ -112,7 +109,6 @@
         .right-finger { right: -40px; }
         .arrow-line { position: absolute; top: 50%; left: -30px; right: -30px; height: 2px; background: var(--text); z-index: -1; }
 
-        /* Step 3: Camera */
         .camera-container {
             position: relative;
             height: 85%;
@@ -147,22 +143,26 @@
         .status-pill.warning { background: rgba(239, 68, 68, 0.85); border-color: #ef4444; }
         .status-pill.success { background: rgba(16, 185, 129, 0.85); border-color: #10b981; }
 
-        /* PILL SHAPE GHOST */
+        /* DYNAMIC GHOST OVERLAY */
         .ghost-overlay {
             position: absolute; 
             top: 50%; 
             left: 50%; 
+            /* Transformation happens in JS for size, CSS for centering */
             transform: translate(-50%, -50%);
-            width: 320px;  /* Fixed width for pill */
-            height: 480px; /* Fixed height for pill */
-            max-height: 70%; /* Responsive cap */
             
-            /* The Pill Shape */
+            /* Initial size (will be overridden by JS) */
+            width: 320px; 
+            height: 480px;
+            
             border-radius: 9999px; 
             border: 4px dashed rgba(255, 255, 255, 0.7);
             
             z-index: 10;
-            box-shadow: 0 0 0 9999px rgba(0,0,0,0.5); /* Dimming mask */
+            box-shadow: 0 0 0 9999px rgba(0,0,0,0.5);
+            
+            /* Smooth sizing animation */
+            transition: width 0.1s ease-out, height 0.1s ease-out;
         }
         
         .crosshair {
@@ -205,22 +205,17 @@
         <h1>Headphone Sizing Tool</h1>
         <p>This tool helps us design the perfect fit for you.<br>
         We will use your webcam to measure your head breadth accurately.</p>
-        
-        <button class="btn" onclick="startApp()">
-            Get Started <span>&rarr;</span>
-        </button>
+        <button class="btn" onclick="startApp()">Get Started <span>&rarr;</span></button>
     </div>
 
     <div id="step1" class="step">
         <h1>Calibration</h1>
         <p>To measure accurately, we need your average eye distance (IPD). <br>Please select your gender or enter a custom value.</p>
-        
         <div class="gender-options">
             <button class="btn" onclick="setIPD(64, 'Male')">Male</button>
             <button class="btn" onclick="setIPD(62, 'Female')">Female</button>
             <button class="btn btn-outline" onclick="showCustomIPD()">Custom</button>
         </div>
-
         <div class="ipd-input-group" id="customIPDGroup">
             <p>Enter IPD (mm):</p>
             <input type="number" id="manualIPD" value="63">
@@ -248,7 +243,7 @@
             <video id="input_video" playsinline></video>
             <canvas id="output_canvas"></canvas>
             
-            <div class="ghost-overlay"></div>
+            <div class="ghost-overlay" id="ghost-overlay"></div>
             <div class="crosshair"></div>
 
             <div class="overlay-ui">
@@ -276,6 +271,10 @@
     let measurementBuffer = [];
     const BUFFER_SIZE = 40; 
     const STABILITY_THRESHOLD = 2.0; 
+
+    // Ghost Sizing Variables
+    let currentGhostW = 320;
+    let currentGhostH = 480;
     
     // --- DOM Elements ---
     const step0 = document.getElementById('step0');
@@ -287,86 +286,88 @@
     const resultOverlay = document.getElementById('result-overlay');
     const finalResultDisplay = document.getElementById('final-result');
     const loader = document.getElementById('loader');
+    const ghostOverlay = document.getElementById('ghost-overlay');
 
     // --- Steps Logic ---
-    function startApp() {
-        step0.classList.remove('active');
-        step1.classList.add('active');
-    }
+    function startApp() { step0.classList.remove('active'); step1.classList.add('active'); }
+    function setIPD(value, type) { userIPD = parseFloat(value); step1.classList.remove('active'); step2.classList.add('active'); }
+    function showCustomIPD() { document.getElementById('customIPDGroup').style.display = 'block'; }
+    function goToStep3() { step2.classList.remove('active'); step3.classList.add('active'); startCamera(); }
 
-    function setIPD(value, type) {
-        userIPD = parseFloat(value);
-        console.log(`IPD set to ${userIPD} (${type})`);
-        step1.classList.remove('active');
-        step2.classList.add('active');
-    }
+    // --- Math Helpers ---
+    function distance(p1, p2) { return Math.sqrt(Math.pow(p2.x - p1.x, 2) + Math.pow(p2.y - p1.y, 2)); }
+    function lerp(start, end, t) { return start * (1 - t) + end * t; }
+    function arc(ctx, x, y) { ctx.arc(x, y, 8, 0, 2 * Math.PI); }
 
-    function showCustomIPD() {
-        document.getElementById('customIPDGroup').style.display = 'block';
-    }
-
-    function goToStep3() {
-        step2.classList.remove('active');
-        step3.classList.add('active');
-        startCamera();
-    }
-
-    // --- Computer Vision Logic (MediaPipe) ---
+    // --- Computer Vision Logic ---
     const videoElement = document.getElementById('input_video');
     const canvasElement = document.getElementById('output_canvas');
     const canvasCtx = canvasElement.getContext('2d');
 
-    function distance(p1, p2) {
-        return Math.sqrt(Math.pow(p2.x - p1.x, 2) + Math.pow(p2.y - p1.y, 2));
-    }
-
     function onResults(results) {
         if (!isScanning) return;
 
-        // Resize canvas to match video
         canvasElement.width = videoElement.videoWidth;
         canvasElement.height = videoElement.videoHeight;
+        const w = canvasElement.width;
+        const h = canvasElement.height;
 
         canvasCtx.save();
-        canvasCtx.clearRect(0, 0, canvasElement.width, canvasElement.height);
+        canvasCtx.clearRect(0, 0, w, h);
         canvasCtx.lineWidth = 3;
 
         let status = "Align Face in Pill";
-        let isStable = false;
         let isAligned = false;
         let warningClass = "";
 
         if (results.faceLandmarks) {
+            // --- 1. Auto-Adjust Ghost Overlay ---
+            // Landmarks: 10 (Top), 152 (Bottom), 234 (Left Cheek), 454 (Right Cheek)
+            const top = results.faceLandmarks[10].y;
+            const bottom = results.faceLandmarks[152].y;
+            const left = results.faceLandmarks[234].x;
+            const right = results.faceLandmarks[454].x;
+
+            // Calculate raw dimensions of the face
+            const faceH = (bottom - top) * h;
+            const faceW = (right - left) * w;
+
+            // Target size: Add padding (1.6x width, 1.3x height for comfortable fit)
+            // Clamp min/max sizes to prevent glitching
+            const targetW = Math.max(200, Math.min(faceW * 1.8, w * 0.8));
+            const targetH = Math.max(300, Math.min(faceH * 1.4, h * 0.9));
+
+            // Lerp for smooth transition (0.1 speed)
+            currentGhostW = lerp(currentGhostW, targetW, 0.1);
+            currentGhostH = lerp(currentGhostH, targetH, 0.1);
+
+            // Apply to DOM
+            ghostOverlay.style.width = `${currentGhostW}px`;
+            ghostOverlay.style.height = `${currentGhostH}px`;
+
+
+            // --- 2. Alignment Check ---
             const nose = results.faceLandmarks[1];
             const leftEye = results.faceLandmarks[33];
             const rightEye = results.faceLandmarks[263];
 
             const eyeMidX = (leftEye.x + rightEye.x) / 2;
-            const yawDiff = Math.abs(nose.x - eyeMidX);
             const eyeMidY = (leftEye.y + rightEye.y) / 2;
+            const yawDiff = Math.abs(nose.x - eyeMidX);
             const pitchDiff = nose.y - eyeMidY; 
 
-            if (yawDiff > 0.05) {
-                status = "Turn head straight";
-                warningClass = "warning";
-            } else if (pitchDiff < 0.02) {
-                status = "Look down slightly";
-                warningClass = "warning";
-            } else if (pitchDiff > 0.1) {
-                status = "Look up slightly";
-                warningClass = "warning";
-            } else {
-                isAligned = true;
-            }
+            if (yawDiff > 0.05) { status = "Turn head straight"; warningClass = "warning"; }
+            else if (pitchDiff < 0.02) { status = "Look down slightly"; warningClass = "warning"; }
+            else if (pitchDiff > 0.1) { status = "Look up slightly"; warningClass = "warning"; }
+            else { isAligned = true; }
 
+            // --- 3. Measurement Logic ---
             const leftIris = results.faceLandmarks[468];
             const rightIris = results.faceLandmarks[473];
             
             if(leftIris && rightIris) {
-                // Feedback: Draw Iris
+                // Draw Eyes (Feedback)
                 canvasCtx.fillStyle = "#10b981";
-                const w = canvasElement.width;
-                const h = canvasElement.height;
                 canvasCtx.beginPath(); arc(canvasCtx, leftIris.x * w, leftIris.y * h); canvasCtx.fill();
                 canvasCtx.beginPath(); arc(canvasCtx, rightIris.x * w, rightIris.y * h); canvasCtx.fill();
 
@@ -381,7 +382,7 @@
                     canvasCtx.beginPath(); arc(canvasCtx, leftIndex.x * w, leftIndex.y * h); canvasCtx.fill();
                     canvasCtx.beginPath(); arc(canvasCtx, rightIndex.x * w, rightIndex.y * h); canvasCtx.fill();
 
-                    // Draw line between fingers
+                    // Line between fingers
                     canvasCtx.strokeStyle = "#ef4444";
                     canvasCtx.beginPath();
                     canvasCtx.moveTo(leftIndex.x * w, leftIndex.y * h);
@@ -393,6 +394,7 @@
 
                     status = `Holding: ${Math.round(currentBreadthMM)}mm`;
                     
+                    // Stability Check
                     measurementBuffer.push(currentBreadthMM);
                     if (measurementBuffer.length > BUFFER_SIZE) measurementBuffer.shift();
 
@@ -404,10 +406,8 @@
                         let progress = Math.max(0, 100 - (stdDev * 10)); 
                         if(stdDev < STABILITY_THRESHOLD) {
                             progress = 100;
-                            isStable = true;
                             finishMeasurement(mean);
                         }
-                        
                         progressFill.style.width = `${progress}%`;
                     }
                 } else if (isAligned) {
@@ -424,10 +424,6 @@
         statusMsg.innerText = status;
         statusMsg.className = "status-pill " + warningClass;
         canvasCtx.restore();
-    }
-
-    function arc(ctx, x, y) {
-        ctx.arc(x, y, 8, 0, 2 * Math.PI);
     }
 
     function finishMeasurement(value) {

@@ -85,8 +85,20 @@
         .g-breadth .right-finger { top: 50%; right: -35px; transform: translateY(-50%); }
         .g-breadth .arrow-line { position: absolute; top: 50%; left: -25px; right: -25px; height: 2px; background: var(--text); z-index: 1; }
         
+        /* Height Graphic with PALM */
         .g-height .side-finger { top: 50%; right: -35px; transform: translateY(-50%); }
-        .g-height .top-finger { top: -35px; left: 50%; transform: translateX(-50%); }
+        
+        /* The Flat Palm Graphic */
+        .g-height .top-palm { 
+            top: -25px; left: 50%; transform: translateX(-50%);
+            width: 60px; height: 12px; 
+            background: var(--danger); 
+            border-radius: 6px;
+            position: absolute;
+            box-shadow: 0 0 0 4px rgba(239, 68, 68, 0.3);
+            z-index: 5;
+        }
+        
         .g-height .arrow-line-vert { position: absolute; top: -25px; bottom: 50%; right: -25px; width: 2px; background: transparent; border-right: 2px dashed var(--text); z-index: 1; }
 
         /* Camera View */
@@ -118,6 +130,18 @@
         }
         .status-pill.visible { opacity: 1; }
 
+        /* Level Gauge */
+        .level-gauge {
+            position: absolute; top: 20%; right: 5%; width: 120px; height: 120px;
+            background: rgba(0,0,0,0.5); border-radius: 50%; border: 2px solid rgba(255,255,255,0.3);
+            display: flex; justify-content: center; align-items: center; backdrop-filter: blur(4px); z-index: 20;
+        }
+        .level-inner-ring { width: 40px; height: 40px; border: 2px solid rgba(255,255,255,0.8); border-radius: 50%; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); }
+        .level-bubble { width: 20px; height: 20px; background-color: var(--warning); border-radius: 50%; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); transition: all 0.1s linear; box-shadow: 0 0 10px rgba(245, 158, 11, 0.8); }
+        .level-label { position: absolute; bottom: -30px; width: 100%; text-align: center; color: white; font-size: 0.9rem; font-weight: 600; }
+        .level-gauge.balanced .level-bubble { background-color: var(--success); box-shadow: 0 0 15px rgba(16, 185, 129, 0.8); }
+        .level-gauge.balanced .level-inner-ring { border-color: var(--success); }
+
         .ghost-overlay {
             position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
             width: 320px; height: 480px; border-radius: 9999px; border: 4px dashed rgba(255, 255, 255, 0.5);
@@ -131,46 +155,6 @@
         .crosshair::before { top: 18px; left: 0; width: 40px; height: 4px; }
         .crosshair::after { top: 0; left: 18px; width: 4px; height: 40px; }
         
-        /* --- DIGITAL LEVEL GAUGE CSS --- */
-        .level-gauge {
-            position: absolute;
-            top: 20%; right: 5%; /* Position to the right side */
-            width: 120px; height: 120px;
-            background: rgba(0,0,0,0.5);
-            border-radius: 50%;
-            border: 2px solid rgba(255,255,255,0.3);
-            display: flex; justify-content: center; align-items: center;
-            backdrop-filter: blur(4px);
-            z-index: 20;
-        }
-        .level-inner-ring {
-            width: 40px; height: 40px;
-            border: 2px solid rgba(255,255,255,0.8);
-            border-radius: 50%;
-            position: absolute;
-            top: 50%; left: 50%; transform: translate(-50%, -50%);
-        }
-        .level-bubble {
-            width: 20px; height: 20px;
-            background-color: var(--warning);
-            border-radius: 50%;
-            position: absolute;
-            top: 50%; left: 50%; transform: translate(-50%, -50%); /* Start Center */
-            transition: all 0.1s linear; /* Smooth movement */
-            box-shadow: 0 0 10px rgba(245, 158, 11, 0.8);
-        }
-        .level-label {
-            position: absolute; bottom: -30px; width: 100%; text-align: center;
-            color: white; font-size: 0.9rem; font-weight: 600; text-shadow: 0 2px 4px rgba(0,0,0,0.8);
-        }
-        .level-gauge.balanced .level-bubble {
-            background-color: var(--success);
-            box-shadow: 0 0 15px rgba(16, 185, 129, 0.8);
-        }
-        .level-gauge.balanced .level-inner-ring {
-            border-color: var(--success);
-        }
-
         .countdown-overlay {
             position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
             font-size: 10rem; color: white; font-weight: 700; text-shadow: 0 4px 20px rgba(0,0,0,0.5);
@@ -209,7 +193,7 @@
     
     <div id="step-welcome" class="step active">
         <h1>Headphone Sizing Tool</h1>
-        <p>We will measure your <b>Head Breadth</b> and <b>Head Height</b> using your webcam to categorize your head size (Small, Medium, Large, Wide, or Tall).</p>
+        <p>We will measure your <b>Head Breadth</b> and <b>Head Height</b> using your webcam to categorize your head size.</p>
         <button class="btn" onclick="nextStep('step-calib')">Get Started <span>&rarr;</span></button>
     </div>
 
@@ -246,11 +230,11 @@
         <div class="instruction-graphic g-height">
             <div class="head-shape"></div>
             <div class="finger-dot side-finger"></div>
-            <div class="finger-dot top-finger"></div>
+            <div class="top-palm"></div>
             <div class="arrow-line-vert"></div>
         </div>
         <p>1. Place one finger on your <b>Tragus</b>.<br>
-           2. Place the other finger on the <b>Top of your Head</b>.<br>
+           2. Press your <b>Flat Palm</b> firmly on the <b>Top of your Head</b> (to flatten hair).<br>
            3. Center the <b>Bubble Level</b>.</p>
         <button class="btn" onclick="startMeasurement('height')">Start Height Measure</button>
     </div>
@@ -417,7 +401,7 @@
                 ui.desc.innerText = "Point Index Fingers to both Tragus";
             } else {
                 ui.title.innerText = "Hands Position";
-                ui.desc.innerText = "Finger on Tragus & Top of Head";
+                ui.desc.innerText = "Finger on Tragus & Flat Palm on Head";
             }
         } else if (phase === 2) {
             ui.title.innerText = "Hold Steady";
@@ -472,27 +456,18 @@
             ui.ghost.style.width = `${currentGhostW}px`;
             ui.ghost.style.height = `${currentGhostH}px`;
 
-            // --- CALCULATE BUBBLE LEVEL ---
-            // Yaw (Left/Right turn): distance of nose from eye midpoint X
-            const yawRaw = (nose.x - eyeMidX); // ~ -0.1 to 0.1
-            // Pitch (Up/Down tilt): distance of nose from eye midpoint Y
-            // Ideal pitch ~ 0.04-0.05 (nose below eyes). We normalize around this.
+            // --- LEVEL GAUGE ---
+            const yawRaw = (nose.x - eyeMidX); 
             const pitchRaw = (nose.y - eyeMidY); 
-            const targetPitch = 0.055; // Calibrated "neutral" pitch
+            const targetPitch = 0.055; 
             const pitchDelta = pitchRaw - targetPitch; 
 
-            // Map raw values to UI Pixels (Max movement +/- 50px)
-            // Multiply by high factor to make it sensitive
             const sensitivity = 800; 
             const bubbleX = Math.max(-50, Math.min(50, yawRaw * sensitivity));
             const bubbleY = Math.max(-50, Math.min(50, pitchDelta * sensitivity));
-
-            // Update UI Bubble
-            ui.levelBubble.style.transform = `translate(calc(-50% + ${-bubbleX}px), calc(-50% + ${bubbleY}px))`; // -bubbleX because mirror view
-
-            // Check if bubble is in the "Safe Zone" (Inner ring is ~40px, so radius 20px)
-            const distFromCenter = Math.sqrt(bubbleX*bubbleX + bubbleY*bubbleY);
-            const isBalanced = distFromCenter < 15; // Strict tolerance
+            
+            ui.levelBubble.style.transform = `translate(calc(-50% + ${-bubbleX}px), calc(-50% + ${bubbleY}px))`;
+            const isBalanced = Math.sqrt(bubbleX*bubbleX + bubbleY*bubbleY) < 15;
 
             if (isBalanced) {
                 ui.levelGauge.classList.add('balanced');
@@ -502,13 +477,9 @@
                 ui.levelBubble.style.backgroundColor = 'var(--warning)';
             }
 
-
-            // --- ALIGNMENT LOGIC ---
             const offsetX = Math.abs(nose.x - 0.5);
-            
             if (offsetX > 0.1) warning = "Center Face";
             else if (!isBalanced) {
-                // Determine direction for warning text
                 if (Math.abs(yawRaw) > 0.05) warning = "Look Straight";
                 else if (pitchDelta < -0.02) warning = "Lower Chin";
                 else if (pitchDelta > 0.03) warning = "Lift Chin";
@@ -518,7 +489,6 @@
             }
 
             isHeadPostureValid = isFaceAligned;
-
             drawDot(canvasCtx, leftEye.x*w, leftEye.y*h, "#10b981");
             drawDot(canvasCtx, rightEye.x*w, rightEye.y*h, "#10b981");
 
@@ -544,9 +514,10 @@
                 if (results.leftHandLandmarks && results.rightHandLandmarks && isFaceAligned) {
                     const l = results.leftHandLandmarks[8];
                     const r = results.rightHandLandmarks[8];
+                    // Draw visual markers
                     drawDot(canvasCtx, l.x*w, l.y*h, "#ef4444");
                     drawDot(canvasCtx, r.x*w, r.y*h, "#ef4444");
-
+                    
                     alignmentStableFrames++;
                     if (alignmentStableFrames > 30) {
                         currentPhase = 2; 
@@ -561,23 +532,45 @@
                 if (results.leftHandLandmarks && results.rightHandLandmarks && results.faceLandmarks) {
                     const lIris = results.faceLandmarks[468];
                     const rIris = results.faceLandmarks[473];
-                    const lIrisPx = { x: lIris.x * w, y: lIris.y * h };
-                    const rIrisPx = { x: rIris.x * w, y: rIris.y * h };
-                    const irisDistPx = distEuclidean(lIrisPx, rIrisPx);
+                    const irisDistPx = distEuclidean(
+                        {x:lIris.x*w, y:lIris.y*h}, 
+                        {x:rIris.x*w, y:rIris.y*h}
+                    );
                     const mmPerPixel = userIPD / irisDistPx;
 
-                    const lFinger = results.leftHandLandmarks[8];
-                    const rFinger = results.rightHandLandmarks[8];
-                    const lFingerPx = { x: lFinger.x * w, y: lFinger.y * h };
-                    const rFingerPx = { x: rFinger.x * w, y: rFinger.y * h };
-                    
+                    // Get Hand Landmarks
+                    const lWrist = results.leftHandLandmarks[0];
+                    const rWrist = results.rightHandLandmarks[0];
+                    const lIndex = results.leftHandLandmarks[8];
+                    const rIndex = results.rightHandLandmarks[8];
+
                     let resultMM = 0;
+
                     if (mode === 'breadth') {
-                        const distPx = distEuclidean(lFingerPx, rFingerPx);
+                        // Euclidean dist between Index Fingers
+                        const distPx = distEuclidean(
+                            {x:lIndex.x*w, y:lIndex.y*h},
+                            {x:rIndex.x*w, y:rIndex.y*h}
+                        );
                         resultMM = distPx * mmPerPixel;
                     } else {
-                        const heightPx = Math.abs(lFingerPx.y - rFingerPx.y);
-                        resultMM = heightPx * mmPerPixel;
+                        // HEIGHT MODE: Detect which hand is "Top" (Smaller Y value)
+                        // Top hand uses Wrist (0), Side hand uses Index (8)
+                        let topY, sideY;
+                        
+                        // Compare wrists to see which hand is higher
+                        if (lWrist.y < rWrist.y) {
+                            // Left hand is top
+                            topY = lWrist.y * h;
+                            sideY = rIndex.y * h;
+                        } else {
+                            // Right hand is top
+                            topY = rWrist.y * h;
+                            sideY = lIndex.y * h;
+                        }
+                        
+                        // Vertical difference
+                        resultMM = Math.abs(sideY - topY) * mmPerPixel;
                     }
 
                     measurementBuffer.push(resultMM);

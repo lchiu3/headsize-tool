@@ -54,20 +54,13 @@
             overflow: hidden;
         }
 
-        h1 { font-size: 2.8rem; color: var(--text); margin-bottom: 20px; font-weight: 700; text-align: center; }
-        p { color: #6b7280; font-size: 1.2rem; line-height: 1.6; margin-bottom: 40px; max-width: 650px; text-align: center; }
+        h1 { font-size: 2.5rem; color: var(--text); margin-bottom: 20px; font-weight: 700; text-align: center; }
+        p { color: #6b7280; font-size: 1.2rem; line-height: 1.6; margin-bottom: 30px; max-width: 650px; text-align: center; }
 
         .btn {
-            background-color: var(--primary);
-            color: white;
-            border: none;
-            padding: 18px 40px;
-            border-radius: 16px;
-            font-size: 1.2rem;
-            cursor: pointer;
-            font-weight: 600;
-            transition: transform 0.2s;
-            margin: 10px;
+            background-color: var(--primary); color: white; border: none; padding: 16px 36px;
+            border-radius: 16px; font-size: 1.1rem; cursor: pointer; font-weight: 600;
+            transition: transform 0.2s; margin: 10px; display: inline-flex; align-items: center; gap: 8px;
         }
         .btn:hover { transform: translateY(-3px); }
         .btn-outline { background: transparent; border: 2px solid var(--primary); color: var(--primary); }
@@ -80,112 +73,82 @@
         .ipd-input-group { margin-top: 20px; display: none; text-align: center; }
         .ipd-input-group input { padding: 12px; border: 2px solid #ddd; border-radius: 12px; width: 100px; text-align: center; font-size: 1.2rem; display: block; margin: 10px auto; }
 
-        /* Graphic */
+        /* Graphics */
         .instruction-graphic {
-            width: 260px; height: 260px; background: #e0e7ff; border-radius: 50%;
-            margin: 30px auto; position: relative; display: flex; justify-content: center; align-items: center;
+            width: 240px; height: 240px; background: #e0e7ff; border-radius: 50%;
+            margin: 20px auto; position: relative; display: flex; justify-content: center; align-items: center;
         }
-        .head-shape { width: 130px; height: 160px; border: 5px solid var(--primary); border-radius: 50px; background: white; }
-        .finger-dot { width: 24px; height: 24px; background: var(--danger); border-radius: 50%; position: absolute; top: 50%; transform: translateY(-50%); }
-        .left-finger { left: -40px; }
-        .right-finger { right: -40px; }
-        .arrow-line { position: absolute; top: 50%; left: -30px; right: -30px; height: 2px; background: var(--text); z-index: -1; }
+        .head-shape { width: 120px; height: 150px; border: 5px solid var(--primary); border-radius: 50px; background: white; position: relative;}
+        .finger-dot { width: 20px; height: 20px; background: var(--danger); border-radius: 50%; position: absolute; box-shadow: 0 0 0 4px rgba(239, 68, 68, 0.3); z-index: 5;}
+        
+        /* Breadth Graphic Specifics */
+        .g-breadth .left-finger { top: 50%; left: -35px; transform: translateY(-50%); }
+        .g-breadth .right-finger { top: 50%; right: -35px; transform: translateY(-50%); }
+        .g-breadth .arrow-line { position: absolute; top: 50%; left: -25px; right: -25px; height: 2px; background: var(--text); z-index: 1; }
+        
+        /* Height Graphic Specifics */
+        .g-height .side-finger { top: 50%; right: -35px; transform: translateY(-50%); }
+        .g-height .top-finger { top: -35px; left: 50%; transform: translateX(-50%); }
+        .g-height .arrow-line-vert { position: absolute; top: -25px; bottom: 50%; right: -25px; width: 2px; background: transparent; border-right: 2px dashed var(--text); z-index: 1; }
 
         /* Camera View */
         .camera-container {
-            position: relative;
-            height: 90%;
-            aspect-ratio: 4/3;
-            border-radius: 24px;
-            overflow: hidden;
-            background: #000;
+            position: relative; height: 90%; aspect-ratio: 4/3; border-radius: 24px;
+            overflow: hidden; background: #000;
         }
         video { width: 100%; height: 100%; object-fit: cover; transform: scaleX(-1); }
         canvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; transform: scaleX(-1); }
         
         .overlay-ui {
             position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-            pointer-events: none;
-            display: flex; flex-direction: column; 
-            align-items: center;
-            justify-content: space-between;
-            padding: 30px; box-sizing: border-box;
+            pointer-events: none; display: flex; flex-direction: column; 
+            align-items: center; justify-content: space-between; padding: 30px; box-sizing: border-box;
         }
 
-        /* Large Instruction Text */
         .instruction-banner {
-            background: rgba(0,0,0,0.6);
-            backdrop-filter: blur(8px);
-            padding: 15px 30px;
-            border-radius: 20px;
-            text-align: center;
-            color: white;
-            border: 1px solid rgba(255,255,255,0.2);
-            margin-top: 20px;
-            transition: all 0.3s;
+            background: rgba(0,0,0,0.6); backdrop-filter: blur(8px); padding: 15px 30px;
+            border-radius: 20px; text-align: center; color: white; border: 1px solid rgba(255,255,255,0.2);
+            margin-top: 20px; transition: all 0.3s;
         }
-        .instruction-banner h2 { margin: 0; font-size: 1.8rem; font-weight: 600; }
-        .instruction-banner p { margin: 5px 0 0 0; font-size: 1rem; color: #ddd; max-width: none; }
-        
-        .instruction-banner.active-step {
-            background: rgba(99, 102, 241, 0.9); /* Primary color */
-            border-color: rgba(255,255,255,0.5);
-            transform: scale(1.05);
-        }
+        .instruction-banner.active-step { background: rgba(99, 102, 241, 0.9); border-color: rgba(255,255,255,0.5); transform: scale(1.05); }
+        .instruction-banner h2 { margin: 0; font-size: 1.6rem; }
+        .instruction-banner p { margin: 5px 0 0 0; font-size: 1rem; color: #ddd; }
 
-        /* Status Warning Pill */
         .status-pill {
-            background: rgba(239, 68, 68, 0.9);
-            color: white;
-            padding: 8px 20px;
-            border-radius: 20px;
-            font-size: 1rem;
-            margin-top: 10px;
-            opacity: 0;
-            transition: opacity 0.3s;
-            font-weight: 600;
+            background: rgba(239, 68, 68, 0.9); color: white; padding: 8px 20px;
+            border-radius: 20px; font-size: 1rem; margin-top: 10px; opacity: 0; transition: opacity 0.3s; font-weight: 600;
         }
         .status-pill.visible { opacity: 1; }
 
-        /* Ghost & Crosshair */
         .ghost-overlay {
             position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
-            width: 320px; height: 480px;
-            border-radius: 9999px; border: 4px dashed rgba(255, 255, 255, 0.5);
-            z-index: 10; box-shadow: 0 0 0 9999px rgba(0,0,0,0.6);
-            transition: width 0.2s, height 0.2s, border-color 0.3s;
+            width: 320px; height: 480px; border-radius: 9999px; border: 4px dashed rgba(255, 255, 255, 0.5);
+            z-index: 10; box-shadow: 0 0 0 9999px rgba(0,0,0,0.6); transition: all 0.2s;
         }
         
         .crosshair {
-            position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
-            width: 40px; height: 40px;
-            transition: all 0.3s;
+            position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 40px; height: 40px;
         }
         .crosshair::before, .crosshair::after { content: ''; position: absolute; background: rgba(255,255,255,0.5); border-radius: 2px;}
         .crosshair::before { top: 18px; left: 0; width: 40px; height: 4px; }
         .crosshair::after { top: 0; left: 18px; width: 4px; height: 40px; }
         
-        /* Active State Visuals */
-        .aligned .ghost-overlay { border-color: var(--success); border-style: solid; }
-        .aligned .crosshair::before, .aligned .crosshair::after { background: var(--success); }
-
-        /* Countdown */
         .countdown-overlay {
             position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
-            font-size: 10rem; color: white; font-weight: 700;
-            text-shadow: 0 4px 20px rgba(0,0,0,0.5);
-            z-index: 100;
-            display: none;
+            font-size: 10rem; color: white; font-weight: 700; text-shadow: 0 4px 20px rgba(0,0,0,0.5);
+            z-index: 100; display: none;
         }
 
-        /* Result */
+        /* Results */
         .result-overlay {
             position: absolute; top: 0; left: 0; right: 0; bottom: 0;
-            background: rgba(255,255,255,0.98);
-            display: flex; flex-direction: column; justify-content: center; align-items: center;
-            z-index: 150; display: none;
+            background: rgba(255,255,255,0.98); display: flex; flex-direction: column;
+            justify-content: center; align-items: center; z-index: 150; display: none;
         }
-        .result-value { font-size: 6rem; font-weight: 700; color: var(--primary); margin: 10px 0; }
+        .result-row { display: flex; gap: 40px; margin: 20px 0; }
+        .result-item { text-align: center; }
+        .result-label { font-size: 1.2rem; color: #6b7280; }
+        .result-val { font-size: 4rem; font-weight: 700; color: var(--primary); }
 
         .loader {
             border: 5px solid #f3f3f3; border-top: 5px solid var(--primary);
@@ -200,42 +163,55 @@
 
 <div class="container">
     
-    <div id="step0" class="step active">
+    <div id="step-welcome" class="step active">
         <h1>Headphone Sizing Tool</h1>
-        <p>This tool helps us design the perfect fit for you.<br>We will use your webcam to measure your head breadth accurately.</p>
-        <button class="btn" onclick="startApp()">Get Started <span>&rarr;</span></button>
+        <p>We will measure your <b>Head Breadth</b> and <b>Head Height</b> using your webcam to ensure the perfect fit.</p>
+        <button class="btn" onclick="nextStep('step-calib')">Get Started <span>&rarr;</span></button>
     </div>
 
-    <div id="step1" class="step">
+    <div id="step-calib" class="step">
         <h1>Calibration</h1>
-        <p>To measure accurately, we need your average eye distance (IPD). <br>Please select your gender or enter a custom value.</p>
+        <p>We need your average eye distance (IPD) to scale the image.</p>
         <div class="gender-options">
             <button class="btn" onclick="setIPD(64, 'Male')">Male</button>
             <button class="btn" onclick="setIPD(62, 'Female')">Female</button>
-            <button class="btn btn-outline" onclick="showCustomIPD()">Custom</button>
+            <button class="btn btn-outline" onclick="document.getElementById('customIPDGroup').style.display = 'block'">Custom</button>
         </div>
         <div class="ipd-input-group" id="customIPDGroup">
-            <p>Enter IPD (mm):</p>
-            <input type="number" id="manualIPD" value="63">
+            <input type="number" id="manualIPD" value="63" placeholder="mm">
             <button class="btn" onclick="setIPD(document.getElementById('manualIPD').value, 'Custom')">Next</button>
         </div>
     </div>
 
-    <div id="step2" class="step">
-        <h1>How to Measure</h1>
-        <div class="instruction-graphic">
+    <div id="step-instr-breadth" class="step">
+        <h1>Part 1: Head Breadth</h1>
+        <div class="instruction-graphic g-breadth">
             <div class="head-shape"></div>
             <div class="finger-dot left-finger"></div>
             <div class="finger-dot right-finger"></div>
             <div class="arrow-line"></div>
         </div>
-        <p>1. Place your <b>Index Fingers</b> on your <b>Tragus</b> (the bump in front of your ear).<br>
+        <p>1. Place your <b>Index Fingers</b> on both <b>Tragus</b> (ear bumps).<br>
            2. Look straight at the camera.<br>
-           3. Hold still when the countdown starts.</p>
-        <button class="btn" onclick="goToStep3()">I Understand, Start</button>
+           3. Hold steady.</p>
+        <button class="btn" onclick="startMeasurement('breadth')">Start Breadth Measure</button>
     </div>
 
-    <div id="step3" class="step">
+    <div id="step-instr-height" class="step">
+        <h1>Part 2: Head Height</h1>
+        <div class="instruction-graphic g-height">
+            <div class="head-shape"></div>
+            <div class="finger-dot side-finger"></div>
+            <div class="finger-dot top-finger"></div>
+            <div class="arrow-line-vert"></div>
+        </div>
+        <p>1. Place one finger on your <b>Tragus</b>.<br>
+           2. Place the other finger on the <b>Top of your Head</b>.<br>
+           3. Look straight at the camera.</p>
+        <button class="btn" onclick="startMeasurement('height')">Start Height Measure</button>
+    </div>
+
+    <div id="step-camera" class="step">
         <div class="loader" id="loader"></div>
         <div class="camera-container">
             <video id="input_video" playsinline></video>
@@ -255,10 +231,24 @@
                 </div>
             </div>
 
-            <div id="result-overlay" class="result-overlay">
-                <h2 style="font-size: 2rem; margin:0;">Head Breadth</h2>
-                <div class="result-value" id="final-result">-- mm</div>
-                <p>Measurement Complete</p>
+            <div id="interstitial-overlay" class="result-overlay">
+                <div class="result-label">Head Breadth Recorded</div>
+                <div class="result-val" id="temp-result">-- mm</div>
+                <button class="btn" style="margin-top:30px;" onclick="nextStep('step-instr-height')">Continue to Height</button>
+            </div>
+
+            <div id="final-overlay" class="result-overlay">
+                <h1>Measurement Complete</h1>
+                <div class="result-row">
+                    <div class="result-item">
+                        <div class="result-label">Breadth</div>
+                        <div class="result-val" id="final-breadth">--</div>
+                    </div>
+                    <div class="result-item">
+                        <div class="result-label">Height</div>
+                        <div class="result-val" id="final-height">--</div>
+                    </div>
+                </div>
                 <button class="btn" onclick="location.reload()">Measure Again</button>
             </div>
         </div>
@@ -267,336 +257,286 @@
 </div>
 
 <script>
-    // --- Global Configuration ---
+    // --- State ---
     let userIPD = 63; 
     let isScanning = false;
-    
-    // Measurement Logic
-    let currentPhase = 0; // 0: Align, 1: Fingers, 2: Steady/Countdown, 3: Done
+    let mode = 'breadth'; // 'breadth' or 'height'
+    let breadthVal = 0;
+    let heightVal = 0;
+
+    // Measurement Flow Variables
+    let currentPhase = 0; // 0: Align, 1: Fingers, 2: Countdown, 3: Measuring
     let alignmentStableFrames = 0;
-    const ALIGN_FRAMES_NEEDED = 20; // How many frames to confirm alignment
     let measurementBuffer = [];
-    const MEASURE_FRAMES = 10;
     
-    // Ghost Sizing
-    let currentGhostW = 320;
-    let currentGhostH = 480;
+    // Config
+    const ALIGN_FRAMES_NEEDED = 20;
+    const MEASURE_FRAMES = 10;
+    let currentGhostW = 300;
+    let currentGhostH = 450;
 
     // --- DOM Elements ---
-    const step0 = document.getElementById('step0');
-    const step1 = document.getElementById('step1');
-    const step2 = document.getElementById('step2');
-    const step3 = document.getElementById('step3');
-    
-    const instructTitle = document.getElementById('instruct-title');
-    const instructDesc = document.getElementById('instruct-desc');
-    const instructBanner = document.getElementById('main-instruction');
-    const warningMsg = document.getElementById('warning-msg');
-    
-    const ghostOverlay = document.getElementById('ghost-overlay');
-    const crosshair = document.getElementById('crosshair');
-    const countdownEl = document.getElementById('countdown');
-    
-    const resultOverlay = document.getElementById('result-overlay');
-    const finalResultDisplay = document.getElementById('final-result');
-    const loader = document.getElementById('loader');
+    const pages = {
+        welcome: document.getElementById('step-welcome'),
+        calib: document.getElementById('step-calib'),
+        instrBreadth: document.getElementById('step-instr-breadth'),
+        instrHeight: document.getElementById('step-instr-height'),
+        camera: document.getElementById('step-camera')
+    };
 
-    // --- Navigation ---
-    function startApp() { step0.classList.remove('active'); step1.classList.add('active'); }
-    function setIPD(value, type) { userIPD = parseFloat(value); step1.classList.remove('active'); step2.classList.add('active'); }
-    function showCustomIPD() { document.getElementById('customIPDGroup').style.display = 'block'; }
-    function goToStep3() { step2.classList.remove('active'); step3.classList.add('active'); startCamera(); }
+    const ui = {
+        title: document.getElementById('instruct-title'),
+        desc: document.getElementById('instruct-desc'),
+        banner: document.getElementById('main-instruction'),
+        warning: document.getElementById('warning-msg'),
+        ghost: document.getElementById('ghost-overlay'),
+        crosshair: document.getElementById('crosshair'),
+        countdown: document.getElementById('countdown'),
+        loader: document.getElementById('loader'),
+        interstitial: document.getElementById('interstitial-overlay'),
+        final: document.getElementById('final-overlay'),
+        tempRes: document.getElementById('temp-result'),
+        finalBreadth: document.getElementById('final-breadth'),
+        finalHeight: document.getElementById('final-height')
+    };
 
-    // --- Math Helpers ---
-    function distance(p1, p2) { return Math.sqrt(Math.pow(p2.x - p1.x, 2) + Math.pow(p2.y - p1.y, 2)); }
-    function lerp(start, end, t) { return start * (1 - t) + end * t; }
-    function arc(ctx, x, y, color) { ctx.fillStyle = color; ctx.beginPath(); ctx.arc(x, y, 8, 0, 2 * Math.PI); ctx.fill(); }
+    // --- Navigation Helpers ---
+    function hideAll() { Object.values(pages).forEach(p => p.classList.remove('active')); }
+    function nextStep(id) { hideAll(); pages[idMap(id)].classList.add('active'); }
+    // Helper to map string ID to object key (lazy way) or just use getElementById directly
+    function idMap(id) {
+        if(id.includes('welcome')) return 'welcome';
+        if(id.includes('calib')) return 'calib';
+        if(id.includes('breadth')) return 'instrBreadth';
+        if(id.includes('height')) return 'instrHeight';
+        if(id.includes('camera')) return 'camera';
+    }
 
-    // --- Computer Vision Logic ---
+    function setIPD(val, type) {
+        userIPD = parseFloat(val);
+        nextStep('step-instr-breadth');
+    }
+
+    // --- Measurement Start Logic ---
+    function startMeasurement(selectedMode) {
+        mode = selectedMode;
+        
+        // Reset Logic State
+        currentPhase = 0;
+        alignmentStableFrames = 0;
+        measurementBuffer = [];
+        ui.interstitial.style.display = 'none';
+        ui.final.style.display = 'none';
+        ui.crosshair.style.opacity = '0.5';
+        ui.ghost.style.borderColor = 'rgba(255,255,255,0.5)';
+        
+        nextStep('step-camera');
+        
+        if (!window.cameraStarted) {
+            initCamera();
+            window.cameraStarted = true;
+        } else {
+            isScanning = true;
+        }
+    }
+
+    // --- Update Text Instructions ---
+    function updateInstructions(phase) {
+        if (phase === 0) {
+            ui.title.innerText = "Align Nose";
+            ui.desc.innerText = "Center your nose on the crosshair";
+            ui.banner.classList.remove('active-step');
+        } else if (phase === 1) {
+            ui.banner.classList.add('active-step');
+            if (mode === 'breadth') {
+                ui.title.innerText = "Hands Position";
+                ui.desc.innerText = "Point Index Fingers to both Tragus (Ears)";
+            } else {
+                ui.title.innerText = "Hands Position";
+                ui.desc.innerText = "One finger on Tragus, one on Top of Head";
+            }
+        } else if (phase === 2) {
+            ui.title.innerText = "Hold Steady";
+            ui.desc.innerText = "Look directly at the camera lens!";
+        }
+    }
+
+    // --- Math & Computer Vision ---
     const videoElement = document.getElementById('input_video');
     const canvasElement = document.getElementById('output_canvas');
     const canvasCtx = canvasElement.getContext('2d');
 
-    function updateInstruction(title, desc, isActive) {
-        instructTitle.innerText = title;
-        instructDesc.innerText = desc;
-        if(isActive) instructBanner.classList.add('active-step');
-        else instructBanner.classList.remove('active-step');
-    }
-
-    function showWarning(msg) {
-        if(msg) {
-            warningMsg.innerText = msg;
-            warningMsg.classList.add('visible');
-        } else {
-            warningMsg.classList.remove('visible');
-        }
-    }
+    function distance(p1, p2) { return Math.sqrt(Math.pow(p2.x - p1.x, 2) + Math.pow(p2.y - p1.y, 2)); }
+    function lerp(start, end, t) { return start * (1 - t) + end * t; }
+    function drawDot(ctx, x, y, color) { ctx.fillStyle = color; ctx.beginPath(); ctx.arc(x, y, 8, 0, 2 * Math.PI); ctx.fill(); }
 
     async function onResults(results) {
         if (!isScanning) return;
 
+        // Draw Setup
         canvasElement.width = videoElement.videoWidth;
         canvasElement.height = videoElement.videoHeight;
         const w = canvasElement.width;
         const h = canvasElement.height;
-
         canvasCtx.save();
         canvasCtx.clearRect(0, 0, w, h);
-        canvasCtx.lineWidth = 3;
 
         let warning = "";
         let isFaceAligned = false;
 
         if (results.faceLandmarks) {
-            // 1. Ghost Sizing (Always active for smooth UX)
+            // 1. Ghost Sizing (Adaptive)
             const top = results.faceLandmarks[10].y;
             const bottom = results.faceLandmarks[152].y;
             const faceH = (bottom - top) * h;
-            const targetW = Math.max(220, faceH * 0.8); // Pill ratio
-            const targetH = Math.max(300, faceH * 1.5); 
+            const targetW = Math.max(220, faceH * 0.8);
+            const targetH = Math.max(300, faceH * 1.5);
             currentGhostW = lerp(currentGhostW, targetW, 0.1);
             currentGhostH = lerp(currentGhostH, targetH, 0.1);
-            ghostOverlay.style.width = `${currentGhostW}px`;
-            ghostOverlay.style.height = `${currentGhostH}px`;
+            ui.ghost.style.width = `${currentGhostW}px`;
+            ui.ghost.style.height = `${currentGhostH}px`;
 
-            // 2. Face Alignment Check
+            // 2. Alignment Check
             const nose = results.faceLandmarks[1];
             const leftEye = results.faceLandmarks[33];
             const rightEye = results.faceLandmarks[263];
             const eyeMidX = (leftEye.x + rightEye.x) / 2;
             const eyeMidY = (leftEye.y + rightEye.y) / 2;
-            
-            // Check Center (Nose relative to image center 0.5)
+
             const offsetX = Math.abs(nose.x - 0.5);
-            const offsetY = Math.abs(nose.y - 0.5);
-            
-            // Check Rotation
-            const yaw = Math.abs(nose.x - eyeMidX); // Looking L/R
-            const pitch = nose.y - eyeMidY; // Looking U/D
+            const yaw = Math.abs(nose.x - eyeMidX);
+            const pitch = nose.y - eyeMidY;
 
-            if (offsetX > 0.1 || offsetY > 0.1) {
-                warning = "Move Nose to Center Cross";
-            } else if (yaw > 0.05) {
-                warning = "Turn Head Straight";
-            } else if (pitch < 0.02) {
-                warning = "Look Down Slightly";
-            } else if (pitch > 0.08) {
-                warning = "Look Up Slightly";
-            } else {
-                isFaceAligned = true;
-            }
+            if (offsetX > 0.1) warning = "Center your face";
+            else if (yaw > 0.06) warning = "Turn Head Straight";
+            else if (pitch < 0.02) warning = "Look Down Slightly";
+            else if (pitch > 0.08) warning = "Look Up Slightly";
+            else isFaceAligned = true;
 
-            // Draw Feedback
-            arc(canvasCtx, leftEye.x*w, leftEye.y*h, "#10b981");
-            arc(canvasCtx, rightEye.x*w, rightEye.y*h, "#10b981");
-        } else {
-            warning = "Face not detected";
-        }
+            // Draw Eyes (Feedback)
+            drawDot(canvasCtx, leftEye.x*w, leftEye.y*h, "#10b981");
+            drawDot(canvasCtx, rightEye.x*w, rightEye.y*h, "#10b981");
 
-        showWarning(warning);
+            // --- Phase Logic ---
+            updateInstructions(currentPhase);
+            ui.warning.innerText = warning;
+            ui.warning.className = warning ? "status-pill visible" : "status-pill";
 
-        // --- STATE MACHINE ---
-        
-        // PHASE 0: ALIGNMENT
-        if (currentPhase === 0) {
-            updateInstruction("Step 1: Alignment", "Align your nose with the center cross", false);
-            
-            if (isFaceAligned) {
-                alignmentStableFrames++;
-                crosshair.style.opacity = "1";
-                document.querySelector('.container').classList.add('aligned');
-                
-                if (alignmentStableFrames > ALIGN_FRAMES_NEEDED) {
-                    currentPhase = 1;
-                    alignmentStableFrames = 0;
-                }
-            } else {
-                alignmentStableFrames = 0;
-                document.querySelector('.container').classList.remove('aligned');
-            }
-        }
-
-        // PHASE 1: FINGER PLACEMENT
-        else if (currentPhase === 1) {
-            updateInstruction("Step 2: Place Fingers", "Point index fingers to your Tragus (ears)", true);
-            
-            // Check if hands are present
-            if (results.leftHandLandmarks && results.rightHandLandmarks && isFaceAligned) {
-                const leftIdx = results.leftHandLandmarks[8];
-                const rightIdx = results.rightHandLandmarks[8];
-                
-                // Draw fingers
-                arc(canvasCtx, leftIdx.x*w, leftIdx.y*h, "#ef4444");
-                arc(canvasCtx, rightIdx.x*w, rightIdx.y*h, "#ef4444");
-
-                // Check rough position (fingers should be somewhat apart and near face height)
-                const handDist = distance(leftIdx, rightIdx);
-                if (handDist > 0.1) { // Basic sanity check
+            // Phase 0: Alignment
+            if (currentPhase === 0) {
+                if (isFaceAligned) {
                     alignmentStableFrames++;
-                    if (alignmentStableFrames > 30) { // Hold fingers for ~1 sec
-                         currentPhase = 2; // Move to countdown
-                         startCountdown(results); // Pass current frame context if needed
+                    ui.ghost.style.borderColor = '#10b981';
+                    if (alignmentStableFrames > ALIGN_FRAMES_NEEDED) {
+                        currentPhase = 1;
+                        alignmentStableFrames = 0;
+                    }
+                } else {
+                    alignmentStableFrames = 0;
+                    ui.ghost.style.borderColor = 'rgba(255,255,255,0.5)';
+                }
+            }
+            
+            // Phase 1: Hand Placement
+            else if (currentPhase === 1) {
+                if (results.leftHandLandmarks && results.rightHandLandmarks && isFaceAligned) {
+                    const l = results.leftHandLandmarks[8];
+                    const r = results.rightHandLandmarks[8];
+                    
+                    // Draw Fingers
+                    drawDot(canvasCtx, l.x*w, l.y*h, "#ef4444");
+                    drawDot(canvasCtx, r.x*w, r.y*h, "#ef4444");
+
+                    // Sanity check: Fingers must be visible
+                    alignmentStableFrames++;
+                    if (alignmentStableFrames > 30) {
+                        currentPhase = 2; // Start Countdown
+                        startCountdown();
+                    }
+                } else {
+                    if(!isFaceAligned) {
+                        // Optional: Reset if face lost? Keeping it simple.
+                         ui.warning.innerText = "Keep Head Still";
+                         ui.warning.classList.add('visible');
                     }
                 }
-            } else {
-                // If hands disappear or face moves, strictness can be adjusted here
-                // For now, we just wait.
-                if(!isFaceAligned) {
-                     // If they move head too much, go back? 
-                     // optional: currentPhase = 0; 
-                     warning = "Keep head aligned!";
-                     showWarning(warning);
+            }
+
+            // Phase 3: Actual Measurement Capture
+            else if (currentPhase === 3) {
+                // We need hands and face
+                if (results.leftHandLandmarks && results.rightHandLandmarks && results.faceLandmarks) {
+                    const lIris = results.faceLandmarks[468];
+                    const rIris = results.faceLandmarks[473];
+                    const mmPerUnit = userIPD / distance(lIris, rIris);
+
+                    const lFinger = results.leftHandLandmarks[8];
+                    const rFinger = results.rightHandLandmarks[8];
+                    
+                    // Calculate based on mode
+                    let measureDist = distance(lFinger, rFinger);
+                    let resultMM = measureDist * mmPerUnit;
+
+                    measurementBuffer.push(resultMM);
+
+                    if (measurementBuffer.length >= MEASURE_FRAMES) {
+                        finishMeasurementSection();
+                    }
                 }
             }
         }
-        
-        // PHASE 2 & 3 handled by startCountdown function logic primarily, 
-        // but we keep drawing feedback here.
-        else if (currentPhase >= 2) {
-            if(results.leftHandLandmarks && results.rightHandLandmarks) {
-                 const l = results.leftHandLandmarks[8];
-                 const r = results.rightHandLandmarks[8];
-                 arc(canvasCtx, l.x*w, l.y*h, "#ef4444");
-                 arc(canvasCtx, r.x*w, r.y*h, "#ef4444");
-            }
-        }
-
         canvasCtx.restore();
     }
 
     function startCountdown() {
-        if(currentPhase !== 2) return;
-        
-        // Lock UI
-        updateInstruction("Step 3: Look at Camera", "Directly at the lens! Hold steady...", true);
-        countdownEl.style.display = 'block';
-        
+        ui.countdown.style.display = 'block';
         let count = 3;
-        countdownEl.innerText = count;
+        ui.countdown.innerText = count;
         
-        const interval = setInterval(() => {
+        const timer = setInterval(() => {
             count--;
-            if(count > 0) {
-                countdownEl.innerText = count;
-            } else {
-                clearInterval(interval);
-                countdownEl.style.display = 'none';
-                takeMeasurement();
+            if (count > 0) ui.countdown.innerText = count;
+            else {
+                clearInterval(timer);
+                ui.countdown.style.display = 'none';
+                currentPhase = 3; // Trigger capture in loop
             }
         }, 1000);
     }
 
-    function takeMeasurement() {
-        // We need one final clean frame of data
-        // We set a flag to capture the NEXT frame in onResults, or we just grab the latest buffered data.
-        // However, onResults is async. The cleanest way is to set a "Capture" mode.
-        
-        currentPhase = 3; // Measuring
-        statusMsg.innerText = "Calculating...";
-        
-        // Simple Average Measurement over next 10 frames could be done here, 
-        // but for simplicity in this flow, we will grab the *next* valid frame.
-        
-        // Let's modify the onResults to handle "Phase 3" as the capture trigger.
-        // Actually, easier: we attach a one-time listener or just use the global variables.
-        // We will restart the holistic momentarily to ensure fresh data or just wait for the next frame loop.
-        
-        // For this demo, we will hook into the variables in the next frame render.
-        // Let's create a temporary listener for the result.
-    }
-
-    // Overriding the onResults to handle the final capture inside the loop
-    // This is safer than trying to grab it asynchronously outside.
-    const originalOnResults = onResults; // preserve reference
-    
-    // We need to inject the Measurement logic inside the main loop
-    // I will modify the main onResults above to handle Phase 3 explicitly.
-    
-    // Redefining onResults to include Phase 3 logic specifically for the measurement
-    async function onResultsWithCapture(results) {
-        // Run standard drawing/logic
-        await onResults(results); 
-
-        if (currentPhase === 3 && isScanning) {
-            if (results.faceLandmarks && results.leftHandLandmarks && results.rightHandLandmarks) {
-                
-                // 1. Calculate Scale
-                const leftIris = results.faceLandmarks[468];
-                const rightIris = results.faceLandmarks[473];
-                const irisDist = distance(leftIris, rightIris);
-                const mmPerUnit = userIPD / irisDist;
-
-                // 2. Calculate Fingers
-                const l = results.leftHandLandmarks[8];
-                const r = results.rightHandLandmarks[8];
-                const fingerDist = distance(l, r);
-                
-                // 3. Result
-                const headBreadth = fingerDist * mmPerUnit;
-                
-                // Add to buffer
-                measurementBuffer.push(headBreadth);
-                
-                if (measurementBuffer.length >= MEASURE_FRAMES) {
-                    const avg = measurementBuffer.reduce((a,b)=>a+b) / measurementBuffer.length;
-                    finishApp(avg);
-                }
-            } else {
-                // If tracking lost during capture, just wait for next frame
-                console.log("Tracking unstable during capture...");
-            }
-        }
-    }
-
-    function finishApp(value) {
+    function finishMeasurementSection() {
         isScanning = false;
-        finalResultDisplay.innerText = Math.round(value) + " mm";
-        resultOverlay.style.display = "flex";
-        
-        // Stop Camera
-        const stream = videoElement.srcObject;
-        if(stream) {
-            const tracks = stream.getTracks();
-            tracks.forEach(track => track.stop());
+        // Calculate Average
+        const avg = measurementBuffer.reduce((a,b)=>a+b) / measurementBuffer.length;
+        const rounded = Math.round(avg);
+
+        if (mode === 'breadth') {
+            breadthVal = rounded;
+            ui.tempRes.innerText = breadthVal + " mm";
+            ui.interstitial.style.display = 'flex';
+        } else {
+            heightVal = rounded;
+            showFinalResults();
         }
     }
 
-    function startCamera() {
-        loader.style.display = "block";
-        
-        const holistic = new Holistic({locateFile: (file) => {
-            return `https://cdn.jsdelivr.net/npm/@mediapipe/holistic/${file}`;
-        }});
+    function showFinalResults() {
+        ui.finalBreadth.innerText = breadthVal + " mm";
+        ui.finalHeight.innerText = heightVal + " mm";
+        ui.final.style.display = 'flex';
+    }
 
-        holistic.setOptions({
-            modelComplexity: 1,
-            smoothLandmarks: true,
-            minDetectionConfidence: 0.5,
-            minTrackingConfidence: 0.5,
-            refineFaceLandmarks: true 
-        });
-
-        // Use the wrapper that includes capture logic
-        holistic.onResults(onResultsWithCapture);
+    function initCamera() {
+        ui.loader.style.display = 'block';
+        const holistic = new Holistic({locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/holistic/${file}`});
+        holistic.setOptions({modelComplexity: 1, smoothLandmarks: true, minDetectionConfidence: 0.5, minTrackingConfidence: 0.5, refineFaceLandmarks: true});
+        holistic.onResults(onResults);
 
         const camera = new Camera(videoElement, {
-            onFrame: async () => {
-                await holistic.send({image: videoElement});
-            },
-            width: 1280, 
-            height: 720
+            onFrame: async () => { await holistic.send({image: videoElement}); },
+            width: 1280, height: 720
         });
-
-        camera.start()
-            .then(() => {
-                loader.style.display = "none";
-                isScanning = true;
-            })
-            .catch(err => {
-                console.error(err);
-                alert("Camera failed to start");
-            });
+        camera.start().then(() => { ui.loader.style.display = 'none'; isScanning = true; });
     }
 
 </script>

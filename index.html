@@ -143,10 +143,16 @@
             background: rgba(255,255,255,0.98); display: flex; flex-direction: column;
             justify-content: center; align-items: center; z-index: 150; display: none;
         }
+        .result-category {
+            font-size: 3.5rem; color: var(--text); font-weight: 800; margin-bottom: 20px;
+            text-transform: uppercase; letter-spacing: 2px;
+            background: linear-gradient(135deg, var(--primary), #818cf8);
+            -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+        }
         .result-row { display: flex; gap: 40px; margin: 20px 0; }
         .result-item { text-align: center; }
         .result-label { font-size: 1.2rem; color: #6b7280; }
-        .result-val { font-size: 4rem; font-weight: 700; color: var(--primary); }
+        .result-val { font-size: 2.5rem; font-weight: 700; color: var(--text); }
 
         .loader {
             border: 5px solid #f3f3f3; border-top: 5px solid var(--primary);
@@ -163,7 +169,7 @@
     
     <div id="step-welcome" class="step active">
         <h1>Headphone Sizing Tool</h1>
-        <p>We will measure your <b>Head Breadth</b> and <b>Head Height</b> using your webcam to ensure the perfect fit.</p>
+        <p>We will measure your <b>Head Breadth</b> and <b>Head Height</b> using your webcam to categorize your head size (Small, Medium, Large, Wide, or Tall).</p>
         <button class="btn" onclick="nextStep('step-calib')">Get Started <span>&rarr;</span></button>
     </div>
 
@@ -236,7 +242,9 @@
             </div>
 
             <div id="final-overlay" class="result-overlay">
-                <h1>Measurement Complete</h1>
+                <div class="result-label">Result Category</div>
+                <div class="result-category" id="final-category">--</div>
+                
                 <div class="result-row">
                     <div class="result-item">
                         <div class="result-label">Breadth</div>
@@ -255,6 +263,15 @@
 </div>
 
 <script>
+    // --- Configuration Profiles ---
+    const HEAD_PROFILES = [
+        { name: "Small",  w: 136.5, h: 109.0 },
+        { name: "Medium", w: 150.0, h: 128.0 },
+        { name: "Large",  w: 164.0, h: 145.5 },
+        { name: "Wide",   w: 164.0, h: 109.0 },
+        { name: "Tall",   w: 136.5, h: 145.5 }
+    ];
+
     // --- State ---
     let userIPD = 63; 
     let isScanning = false;
@@ -262,16 +279,13 @@
     let breadthVal = 0;
     let heightVal = 0;
 
-    // Measurement Flow
-    let currentPhase = 0; // 0: Align, 1: Fingers, 2: Countdown, 3: Measuring
+    let currentPhase = 0; 
     let alignmentStableFrames = 0;
     let measurementBuffer = [];
     
-    // Global flag for the countdown timer to check
     let isHeadPostureValid = false;
-    let countdownTimer = null; // Store interval ID
+    let countdownTimer = null; 
 
-    // Config
     const ALIGN_FRAMES_NEEDED = 20;
     const MEASURE_FRAMES = 10;
     let currentGhostW = 300;
@@ -299,7 +313,8 @@
         final: document.getElementById('final-overlay'),
         tempRes: document.getElementById('temp-result'),
         finalBreadth: document.getElementById('final-breadth'),
-        finalHeight: document.getElementById('final-height')
+        finalHeight: document.getElementById('final-height'),
+        finalCategory: document.getElementById('final-category')
     };
 
     // --- Navigation Helpers ---
@@ -328,7 +343,6 @@
         ui.crosshair.style.opacity = '0.5';
         ui.ghost.style.borderColor = 'rgba(255,255,255,0.5)';
         
-        // Reset countdown
         if(countdownTimer) clearInterval(countdownTimer);
         ui.countdown.style.display = 'none';
 
@@ -362,7 +376,7 @@
         }
     }
 
-    // --- Math & Computer Vision ---
+    // --- Math & Logic ---
     const videoElement = document.getElementById('input_video');
     const canvasElement = document.getElementById('output_canvas');
     const canvasCtx = canvasElement.getContext('2d');
@@ -370,6 +384,22 @@
     function distEuclidean(p1, p2) { return Math.sqrt(Math.pow(p2.x - p1.x, 2) + Math.pow(p2.y - p1.y, 2)); }
     function lerp(start, end, t) { return start * (1 - t) + end * t; }
     function drawDot(ctx, x, y, color) { ctx.fillStyle = color; ctx.beginPath(); ctx.arc(x, y, 8, 0, 2 * Math.PI); ctx.fill(); }
+
+    // --- Profile Categorization ---
+    function categorizeHead(measuredB, measuredH) {
+        let bestMatch = null;
+        let minDist = Infinity;
+
+        HEAD_PROFILES.forEach(profile => {
+            // Distance in 2D space: sqrt((b1-b2)^2 + (h1-h2)^2)
+            const d = Math.sqrt(Math.pow(measuredB - profile.w, 2) + Math.pow(measuredH - profile.h, 2));
+            if (d < minDist) {
+                minDist = d;
+                bestMatch = profile.name;
+            }
+        });
+        return bestMatch;
+    }
 
     async function onResults(results) {
         if (!isScanning) return;
@@ -391,7 +421,6 @@
             const eyeMidX = (leftEye.x + rightEye.x) / 2;
             const eyeMidY = (leftEye.y + rightEye.y) / 2;
 
-            // Ghost Sizing
             const top = results.faceLandmarks[10].y;
             const bottom = results.faceLandmarks[152].y;
             const faceH = (bottom - top) * h;
@@ -400,18 +429,16 @@
             ui.ghost.style.width = `${currentGhostW}px`;
             ui.ghost.style.height = `${currentGhostH}px`;
 
-            // --- STRICT ROTATION CHECKS ---
             const offsetX = Math.abs(nose.x - 0.5);
             const yaw = Math.abs(nose.x - eyeMidX);
             const pitch = nose.y - eyeMidY; 
 
             if (offsetX > 0.1) warning = "Center your face";
             else if (yaw > 0.05) warning = "Turn Head Straight";
-            else if (pitch < 0.035) warning = "Lower Your Chin"; // Strictly checking UP tilt
+            else if (pitch < 0.035) warning = "Lower Your Chin";
             else if (pitch > 0.08) warning = "Look Up Slightly"; 
             else isFaceAligned = true;
 
-            // Global Flag Update for Countdown Timer
             isHeadPostureValid = isFaceAligned;
 
             drawDot(canvasCtx, leftEye.x*w, leftEye.y*h, "#10b981");
@@ -421,7 +448,6 @@
             ui.warning.innerText = warning;
             ui.warning.className = warning ? "status-pill visible" : "status-pill";
 
-            // Phase 0: Alignment
             if (currentPhase === 0) {
                 if (isFaceAligned) {
                     alignmentStableFrames++;
@@ -435,7 +461,6 @@
                     ui.ghost.style.borderColor = 'rgba(255,255,255,0.5)';
                 }
             }
-            // Phase 1: Hands
             else if (currentPhase === 1) {
                 if (results.leftHandLandmarks && results.rightHandLandmarks && isFaceAligned) {
                     const l = results.leftHandLandmarks[8];
@@ -449,12 +474,10 @@
                         startCountdown();
                     }
                 } else if(!isFaceAligned) {
-                     // If face posture breaks, ensure warning is visible
                      ui.warning.innerText = warning || "Keep Head Still";
                      ui.warning.classList.add('visible');
                 }
             }
-            // Phase 3: Measurement
             else if (currentPhase === 3) {
                 if (results.leftHandLandmarks && results.rightHandLandmarks && results.faceLandmarks) {
                     const lIris = results.faceLandmarks[468];
@@ -470,7 +493,6 @@
                     const rFingerPx = { x: rFinger.x * w, y: rFinger.y * h };
                     
                     let resultMM = 0;
-
                     if (mode === 'breadth') {
                         const distPx = distEuclidean(lFingerPx, rFingerPx);
                         resultMM = distPx * mmPerPixel;
@@ -491,22 +513,18 @@
         ui.countdown.style.display = 'block';
         let count = 3;
         ui.countdown.innerText = count;
-        ui.countdown.style.color = 'white'; // Reset color
+        ui.countdown.style.color = 'white'; 
 
         if(countdownTimer) clearInterval(countdownTimer);
 
         countdownTimer = setInterval(() => {
-            // --- AUTO STOP/RESET LOGIC ---
             if (!isHeadPostureValid) {
-                // If head is wrong, reset counter to 3 and wait
                 count = 3;
                 ui.countdown.innerText = "3";
-                ui.countdown.style.color = '#f59e0b'; // Turn Orange to warn
-                // The warning pill from onResults will handle the text explanation (e.g. "Lower Chin")
+                ui.countdown.style.color = '#f59e0b'; 
                 return;
             }
 
-            // If head is valid, proceed
             ui.countdown.style.color = 'white';
             count--;
             
@@ -515,7 +533,7 @@
             } else {
                 clearInterval(countdownTimer);
                 ui.countdown.style.display = 'none';
-                currentPhase = 3; // Start measuring
+                currentPhase = 3; 
             }
         }, 1000);
     }
@@ -536,6 +554,10 @@
     }
 
     function showFinalResults() {
+        // Find Category
+        const category = categorizeHead(breadthVal, heightVal);
+
+        ui.finalCategory.innerText = category + " HEAD";
         ui.finalBreadth.innerText = breadthVal + " mm";
         ui.finalHeight.innerText = heightVal + " mm";
         ui.final.style.display = 'flex';

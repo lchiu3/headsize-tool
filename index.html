@@ -262,10 +262,15 @@
     let breadthVal = 0;
     let heightVal = 0;
 
+    // Measurement Flow
     let currentPhase = 0; // 0: Align, 1: Fingers, 2: Countdown, 3: Measuring
     let alignmentStableFrames = 0;
     let measurementBuffer = [];
     
+    // Global flag for the countdown timer to check
+    let isHeadPostureValid = false;
+    let countdownTimer = null; // Store interval ID
+
     // Config
     const ALIGN_FRAMES_NEEDED = 20;
     const MEASURE_FRAMES = 10;
@@ -322,6 +327,11 @@
         ui.final.style.display = 'none';
         ui.crosshair.style.opacity = '0.5';
         ui.ghost.style.borderColor = 'rgba(255,255,255,0.5)';
+        
+        // Reset countdown
+        if(countdownTimer) clearInterval(countdownTimer);
+        ui.countdown.style.display = 'none';
+
         nextStep('step-camera');
         
         if (!window.cameraStarted) {
@@ -393,13 +403,16 @@
             // --- STRICT ROTATION CHECKS ---
             const offsetX = Math.abs(nose.x - 0.5);
             const yaw = Math.abs(nose.x - eyeMidX);
-            const pitch = nose.y - eyeMidY; // Positive = Nose below eyes (Good). Small/Negative = Nose high (Bad).
+            const pitch = nose.y - eyeMidY; 
 
             if (offsetX > 0.1) warning = "Center your face";
             else if (yaw > 0.05) warning = "Turn Head Straight";
-            else if (pitch < 0.035) warning = "Lower Your Chin"; // STRICT CHECK: Raising head
+            else if (pitch < 0.035) warning = "Lower Your Chin"; // Strictly checking UP tilt
             else if (pitch > 0.08) warning = "Look Up Slightly"; 
             else isFaceAligned = true;
+
+            // Global Flag Update for Countdown Timer
+            isHeadPostureValid = isFaceAligned;
 
             drawDot(canvasCtx, leftEye.x*w, leftEye.y*h, "#10b981");
             drawDot(canvasCtx, rightEye.x*w, rightEye.y*h, "#10b981");
@@ -436,7 +449,7 @@
                         startCountdown();
                     }
                 } else if(!isFaceAligned) {
-                     // If they move their head, warn them and don't progress
+                     // If face posture breaks, ensure warning is visible
                      ui.warning.innerText = warning || "Keep Head Still";
                      ui.warning.classList.add('visible');
                 }
@@ -444,8 +457,6 @@
             // Phase 3: Measurement
             else if (currentPhase === 3) {
                 if (results.leftHandLandmarks && results.rightHandLandmarks && results.faceLandmarks) {
-                    
-                    // 1. Convert everything to Pixels (Handle Aspect Ratio)
                     const lIris = results.faceLandmarks[468];
                     const rIris = results.faceLandmarks[473];
                     const lIrisPx = { x: lIris.x * w, y: lIris.y * h };
@@ -453,7 +464,6 @@
                     const irisDistPx = distEuclidean(lIrisPx, rIrisPx);
                     const mmPerPixel = userIPD / irisDistPx;
 
-                    // 2. Finger Pixels
                     const lFinger = results.leftHandLandmarks[8];
                     const rFinger = results.rightHandLandmarks[8];
                     const lFingerPx = { x: lFinger.x * w, y: lFinger.y * h };
@@ -461,13 +471,10 @@
                     
                     let resultMM = 0;
 
-                    // 3. Calculation Type
                     if (mode === 'breadth') {
-                        // Euclidean Distance for Breadth
                         const distPx = distEuclidean(lFingerPx, rFingerPx);
                         resultMM = distPx * mmPerPixel;
                     } else {
-                        // Vertical Difference Only for Height
                         const heightPx = Math.abs(lFingerPx.y - rFingerPx.y);
                         resultMM = heightPx * mmPerPixel;
                     }
@@ -484,14 +491,31 @@
         ui.countdown.style.display = 'block';
         let count = 3;
         ui.countdown.innerText = count;
-        
-        const timer = setInterval(() => {
+        ui.countdown.style.color = 'white'; // Reset color
+
+        if(countdownTimer) clearInterval(countdownTimer);
+
+        countdownTimer = setInterval(() => {
+            // --- AUTO STOP/RESET LOGIC ---
+            if (!isHeadPostureValid) {
+                // If head is wrong, reset counter to 3 and wait
+                count = 3;
+                ui.countdown.innerText = "3";
+                ui.countdown.style.color = '#f59e0b'; // Turn Orange to warn
+                // The warning pill from onResults will handle the text explanation (e.g. "Lower Chin")
+                return;
+            }
+
+            // If head is valid, proceed
+            ui.countdown.style.color = 'white';
             count--;
-            if (count > 0) ui.countdown.innerText = count;
-            else {
-                clearInterval(timer);
+            
+            if (count > 0) {
+                ui.countdown.innerText = count;
+            } else {
+                clearInterval(countdownTimer);
                 ui.countdown.style.display = 'none';
-                currentPhase = 3; 
+                currentPhase = 3; // Start measuring
             }
         }, 1000);
     }

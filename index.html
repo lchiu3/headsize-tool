@@ -81,10 +81,12 @@
         .head-shape { width: 120px; height: 150px; border: 5px solid var(--primary); border-radius: 50px; background: white; position: relative;}
         .finger-dot { width: 20px; height: 20px; background: var(--danger); border-radius: 50%; position: absolute; box-shadow: 0 0 0 4px rgba(239, 68, 68, 0.3); z-index: 5;}
         
+        /* Breadth Graphic Specifics */
         .g-breadth .left-finger { top: 50%; left: -35px; transform: translateY(-50%); }
         .g-breadth .right-finger { top: 50%; right: -35px; transform: translateY(-50%); }
         .g-breadth .arrow-line { position: absolute; top: 50%; left: -25px; right: -25px; height: 2px; background: var(--text); z-index: 1; }
         
+        /* Height Graphic Specifics */
         .g-height .side-finger { top: 50%; right: -35px; transform: translateY(-50%); }
         .g-height .top-finger { top: -35px; left: 50%; transform: translateX(-50%); }
         .g-height .arrow-line-vert { position: absolute; top: -25px; bottom: 50%; right: -25px; width: 2px; background: transparent; border-right: 2px dashed var(--text); z-index: 1; }
@@ -137,6 +139,7 @@
             z-index: 100; display: none;
         }
 
+        /* Results */
         .result-overlay {
             position: absolute; top: 0; left: 0; right: 0; bottom: 0;
             background: rgba(255,255,255,0.98); display: flex; flex-direction: column;
@@ -162,7 +165,7 @@
     
     <div id="step-welcome" class="step active">
         <h1>Headphone Sizing Tool</h1>
-        <p>We will measure your <b>Head Breadth</b> and <b>Head Height</b>.<br>Please ensure your camera is at <b>Eye Level</b>.</p>
+        <p>We will measure your <b>Head Breadth</b> and <b>Head Height</b> using your webcam to ensure the perfect fit.</p>
         <button class="btn" onclick="nextStep('step-calib')">Get Started <span>&rarr;</span></button>
     </div>
 
@@ -257,14 +260,16 @@
     // --- State ---
     let userIPD = 63; 
     let isScanning = false;
-    let mode = 'breadth'; 
+    let mode = 'breadth'; // 'breadth' or 'height'
     let breadthVal = 0;
     let heightVal = 0;
 
-    let currentPhase = 0; 
+    // Measurement Flow Variables
+    let currentPhase = 0; // 0: Align, 1: Fingers, 2: Countdown, 3: Measuring
     let alignmentStableFrames = 0;
     let measurementBuffer = [];
     
+    // Config
     const ALIGN_FRAMES_NEEDED = 20;
     const MEASURE_FRAMES = 10;
     let currentGhostW = 300;
@@ -295,6 +300,7 @@
         finalHeight: document.getElementById('final-height')
     };
 
+    // --- Navigation Helpers ---
     function hideAll() { Object.values(pages).forEach(p => p.classList.remove('active')); }
     function nextStep(id) { hideAll(); pages[idMap(id)].classList.add('active'); }
     function idMap(id) {
@@ -310,6 +316,7 @@
         nextStep('step-instr-breadth');
     }
 
+    // --- Measurement Start Logic ---
     function startMeasurement(selectedMode) {
         mode = selectedMode;
         currentPhase = 0;
@@ -319,6 +326,7 @@
         ui.final.style.display = 'none';
         ui.crosshair.style.opacity = '0.5';
         ui.ghost.style.borderColor = 'rgba(255,255,255,0.5)';
+        
         nextStep('step-camera');
         
         if (!window.cameraStarted) {
@@ -329,6 +337,7 @@
         }
     }
 
+    // --- Update Text Instructions ---
     function updateInstructions(phase) {
         if (phase === 0) {
             ui.title.innerText = "Align Nose";
@@ -349,17 +358,21 @@
         }
     }
 
+    // --- Math & Computer Vision ---
     const videoElement = document.getElementById('input_video');
     const canvasElement = document.getElementById('output_canvas');
     const canvasCtx = canvasElement.getContext('2d');
 
-    function distance(p1, p2) { return Math.sqrt(Math.pow(p2.x - p1.x, 2) + Math.pow(p2.y - p1.y, 2)); }
+    // Basic Euclidean distance for 2D points
+    function distEuclidean(p1, p2) { return Math.sqrt(Math.pow(p2.x - p1.x, 2) + Math.pow(p2.y - p1.y, 2)); }
+    
     function lerp(start, end, t) { return start * (1 - t) + end * t; }
     function drawDot(ctx, x, y, color) { ctx.fillStyle = color; ctx.beginPath(); ctx.arc(x, y, 8, 0, 2 * Math.PI); ctx.fill(); }
 
     async function onResults(results) {
         if (!isScanning) return;
 
+        // Draw Setup
         canvasElement.width = videoElement.videoWidth;
         canvasElement.height = videoElement.videoHeight;
         const w = canvasElement.width;
@@ -371,6 +384,7 @@
         let isFaceAligned = false;
 
         if (results.faceLandmarks) {
+            // 1. Ghost Sizing (Adaptive)
             const top = results.faceLandmarks[10].y;
             const bottom = results.faceLandmarks[152].y;
             const faceH = (bottom - top) * h;
@@ -381,6 +395,7 @@
             ui.ghost.style.width = `${currentGhostW}px`;
             ui.ghost.style.height = `${currentGhostH}px`;
 
+            // 2. Alignment Check
             const nose = results.faceLandmarks[1];
             const leftEye = results.faceLandmarks[33];
             const rightEye = results.faceLandmarks[263];
@@ -397,13 +412,16 @@
             else if (pitch > 0.08) warning = "Look Up Slightly";
             else isFaceAligned = true;
 
+            // Draw Eyes (Feedback)
             drawDot(canvasCtx, leftEye.x*w, leftEye.y*h, "#10b981");
             drawDot(canvasCtx, rightEye.x*w, rightEye.y*h, "#10b981");
 
+            // --- Phase Logic ---
             updateInstructions(currentPhase);
             ui.warning.innerText = warning;
             ui.warning.className = warning ? "status-pill visible" : "status-pill";
 
+            // Phase 0: Alignment
             if (currentPhase === 0) {
                 if (isFaceAligned) {
                     alignmentStableFrames++;
@@ -418,41 +436,63 @@
                 }
             }
             
+            // Phase 1: Hand Placement
             else if (currentPhase === 1) {
                 if (results.leftHandLandmarks && results.rightHandLandmarks && isFaceAligned) {
                     const l = results.leftHandLandmarks[8];
                     const r = results.rightHandLandmarks[8];
                     
+                    // Draw Fingers
                     drawDot(canvasCtx, l.x*w, l.y*h, "#ef4444");
                     drawDot(canvasCtx, r.x*w, r.y*h, "#ef4444");
 
+                    // Sanity check: Fingers must be visible
                     alignmentStableFrames++;
                     if (alignmentStableFrames > 30) {
-                        currentPhase = 2; 
+                        currentPhase = 2; // Start Countdown
                         startCountdown();
+                    }
+                } else {
+                    if(!isFaceAligned) {
+                         ui.warning.innerText = "Keep Head Still";
+                         ui.warning.classList.add('visible');
                     }
                 }
             }
 
+            // Phase 3: Actual Measurement Capture
             else if (currentPhase === 3) {
                 if (results.leftHandLandmarks && results.rightHandLandmarks && results.faceLandmarks) {
+                    
+                    // --- STEP A: Calculate MM Scale ---
+                    // IMPORTANT: Convert normalized coords to PIXELS first to handle Aspect Ratio correctly
                     const lIris = results.faceLandmarks[468];
                     const rIris = results.faceLandmarks[473];
-                    const mmPerUnit = userIPD / distance(lIris, rIris);
+                    
+                    const lIrisPx = { x: lIris.x * w, y: lIris.y * h };
+                    const rIrisPx = { x: rIris.x * w, y: rIris.y * h };
+                    
+                    const irisDistPx = distEuclidean(lIrisPx, rIrisPx);
+                    const mmPerPixel = userIPD / irisDistPx; // Scale Factor: mm per 1 pixel
 
+                    // --- STEP B: Get Finger Pixels ---
                     const lFinger = results.leftHandLandmarks[8];
                     const rFinger = results.rightHandLandmarks[8];
+                    const lFingerPx = { x: lFinger.x * w, y: lFinger.y * h };
+                    const rFingerPx = { x: rFinger.x * w, y: rFinger.y * h };
                     
                     let resultMM = 0;
-                    
+
+                    // --- STEP C: Calculate based on Mode ---
                     if (mode === 'breadth') {
-                        // Euclidean for breadth (horizontal distance essentially)
-                        resultMM = distance(lFinger, rFinger) * mmPerUnit;
+                        // Breadth: Distance between two points (Euclidean)
+                        const distPx = distEuclidean(lFingerPx, rFingerPx);
+                        resultMM = distPx * mmPerPixel;
                     } else {
-                        // Vertical Distance ONLY for height
-                        // We use the absolute difference in Y coordinates
-                        const yDiff = Math.abs(lFinger.y - rFinger.y);
-                        resultMM = yDiff * mmPerUnit;
+                        // Height: Vertical difference only (Y-axis delta)
+                        // Absolute difference between Y coordinates
+                        const heightPx = Math.abs(lFingerPx.y - rFingerPx.y);
+                        resultMM = heightPx * mmPerPixel;
                     }
 
                     measurementBuffer.push(resultMM);
@@ -477,13 +517,14 @@
             else {
                 clearInterval(timer);
                 ui.countdown.style.display = 'none';
-                currentPhase = 3; 
+                currentPhase = 3; // Trigger capture in loop
             }
         }, 1000);
     }
 
     function finishMeasurementSection() {
         isScanning = false;
+        // Calculate Average
         const avg = measurementBuffer.reduce((a,b)=>a+b) / measurementBuffer.length;
         const rounded = Math.round(avg);
 

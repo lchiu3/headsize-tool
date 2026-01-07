@@ -125,7 +125,7 @@
             pointer-events: none;
         }
 
-        /* Instructions - CLEAN - NO BOX - NO SHADOW */
+        /* Instructions */
         .instruction-banner {
             background: none; 
             backdrop-filter: none; 
@@ -134,11 +134,10 @@
             padding: 0;
             text-align: left;
             color: white; 
-            text-shadow: none; /* Removed */
+            text-shadow: none;
             transition: all 0.3s;
         }
         
-        /* Removed Active Step Styling colors */
         .instruction-banner.active-step { 
             background: none;
             border: none;
@@ -150,7 +149,7 @@
             font-size: 2.2rem; 
             font-weight: 700; 
             line-height: 1.2; 
-            text-shadow: none; /* Removed */
+            text-shadow: none;
             color: white;
             background: none;
         }
@@ -167,7 +166,7 @@
             color: rgba(255,255,255,0.9); 
             text-align: left; 
             font-weight: 500;
-            text-shadow: none; /* Removed */
+            text-shadow: none;
         }
 
         /* Warning Pill */
@@ -186,7 +185,7 @@
             box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
             white-space: nowrap;
             z-index: 60;
-            text-shadow: none; /* Removed */
+            text-shadow: none;
         }
         .status-pill.visible { opacity: 1; }
 
@@ -206,7 +205,7 @@
         }
         .level-inner-ring { width: 50px; height: 50px; border: 2px solid rgba(255,255,255,0.8); border-radius: 50%; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); }
         .level-bubble { width: 24px; height: 24px; background-color: var(--warning); border-radius: 50%; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); transition: all 0.1s linear; box-shadow: 0 0 15px rgba(245, 158, 11, 0.8); }
-        .level-label { position: absolute; bottom: -35px; width: 100%; text-align: center; color: white; font-size: 0.9rem; font-weight: 600; text-shadow: none; /* Removed */ }
+        .level-label { position: absolute; bottom: -35px; width: 100%; text-align: center; color: white; font-size: 0.9rem; font-weight: 600; text-shadow: none; }
         .level-gauge.balanced { border-color: var(--success); }
         .level-gauge.balanced .level-bubble { background-color: var(--success); box-shadow: 0 0 15px rgba(16, 185, 129, 0.8); }
         .level-gauge.balanced .level-inner-ring { border-color: var(--success); }
@@ -230,7 +229,7 @@
         .countdown-overlay {
             position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
             font-size: 10rem; color: white; font-weight: 700; 
-            text-shadow: none; /* Removed */
+            text-shadow: none;
             z-index: 100; display: none;
         }
 
@@ -536,12 +535,14 @@
             const top = results.faceLandmarks[10].y;
             const bottom = results.faceLandmarks[152].y;
             const faceH = (bottom - top) * h;
-            currentGhostW = lerp(currentGhostW, Math.max(220, faceH * 0.8), 0.1);
+            
+            // INCREASED WIDTH FACTOR TO 1.1 (110% of Face Height)
+            currentGhostW = lerp(currentGhostW, Math.max(260, faceH * 1.1), 0.1);
             currentGhostH = lerp(currentGhostH, Math.max(300, faceH * 1.5), 0.1);
             ui.ghost.style.width = `${currentGhostW}px`;
             ui.ghost.style.height = `${currentGhostH}px`;
 
-            // Position Warning Pill dynamically at the bottom of the ghost
+            // Position Warning Pill dynamically
             ui.warning.style.top = `calc(50% + ${currentGhostH / 2 + 30}px)`;
 
             // --- LEVEL GAUGE ---

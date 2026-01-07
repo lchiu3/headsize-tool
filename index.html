@@ -44,7 +44,7 @@
             background: var(--card-bg);
             border-radius: 32px;
             box-shadow: 0 20px 50px rgba(0, 0, 0, 0.1);
-            padding: 40px;
+            padding: 40px; /* Default padding for text steps */
             box-sizing: border-box;
             display: flex;
             flex-direction: column;
@@ -52,6 +52,12 @@
             justify-content: center;
             position: relative;
             overflow: hidden;
+            transition: padding 0.3s;
+        }
+
+        /* Fullscreen Mode for Camera */
+        .container.camera-mode {
+            padding: 0;
         }
 
         h1 { font-size: 2.5rem; color: var(--text); margin-bottom: 20px; font-weight: 700; text-align: center; }
@@ -92,77 +98,96 @@
         }
         .g-height .arrow-line-vert { position: absolute; top: -25px; bottom: 50%; right: -25px; width: 2px; background: transparent; border-right: 2px dashed var(--text); z-index: 1; }
 
-        /* Camera View */
+        /* Camera View - Now Full Size */
         .camera-container {
-            position: relative; height: 90%; aspect-ratio: 4/3; border-radius: 24px;
-            overflow: hidden; background: #000;
+            position: relative; 
+            width: 100%; 
+            height: 100%; 
+            border-radius: 32px; /* Match outer container */
+            overflow: hidden; 
+            background: #000;
         }
         video { width: 100%; height: 100%; object-fit: cover; transform: scaleX(-1); }
         canvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; transform: scaleX(-1); }
         
-        /* LEFT SIDE PANEL (Instructions) */
+        /* LEFT SIDE PANEL (Instructions Only) */
         .ui-left-panel {
             position: absolute;
             top: 50%;
-            left: 40px; 
+            left: 50px; 
             transform: translateY(-50%);
-            width: 280px;
+            width: 350px;
             display: flex;
             flex-direction: column;
-            align-items: center; /* Center content within the left panel */
+            align-items: flex-start; /* LEFT ALIGN */
             gap: 15px;
-            z-index: 50; /* Above the ghost mask (z-10) */
+            z-index: 50; 
             pointer-events: none;
         }
 
+        /* Clean Text Instructions */
         .instruction-banner {
-            background: rgba(0,0,0,0.6); 
-            backdrop-filter: blur(8px); 
-            padding: 20px 25px;
-            border-radius: 24px; 
-            text-align: center; 
+            background: none; /* Removed Box */
+            backdrop-filter: none; 
+            border: none;
+            box-shadow: none;
+            padding: 0;
+            text-align: left; /* Left Align */
             color: white; 
-            border: 1px solid rgba(255,255,255,0.2);
-            width: 100%;
+            text-shadow: 0 2px 8px rgba(0,0,0,0.9); /* Heavy shadow for contrast */
             transition: all 0.3s;
-            box-shadow: 0 10px 20px rgba(0,0,0,0.2);
         }
-        .instruction-banner.active-step { 
-            background: rgba(99, 102, 241, 0.95); 
-            border-color: rgba(255,255,255,0.5); 
-            transform: scale(1.05); 
-            box-shadow: 0 15px 30px rgba(99, 102, 241, 0.3);
+        .instruction-banner.active-step h2 { 
+            color: var(--primary); 
+            text-shadow: 0 2px 4px rgba(0,0,0,0.8);
+            background: rgba(255,255,255,0.9);
+            padding: 2px 10px;
+            border-radius: 8px;
+            display: inline-block;
         }
-        .instruction-banner h2 { margin: 0; font-size: 1.4rem; font-weight: 700; }
-        .instruction-banner p { margin: 8px 0 0 0; font-size: 0.95rem; color: rgba(255,255,255,0.9); }
+        .instruction-banner h2 { margin: 0; font-size: 2.2rem; font-weight: 700; line-height: 1.2; }
+        .instruction-banner p { 
+            margin: 10px 0 0 0; 
+            font-size: 1.1rem; 
+            color: rgba(255,255,255,0.9); 
+            text-align: left; 
+            font-weight: 500;
+        }
 
+        /* Warning Pill - Now Centered Bottom */
         .status-pill {
+            position: absolute;
+            left: 50%;
+            /* Top is set dynamically via JS to follow ghost */
+            transform: translate(-50%, 0); 
+            
             background: rgba(239, 68, 68, 0.95); 
-            color: white; padding: 10px 24px;
+            color: white; 
+            padding: 10px 28px;
             border-radius: 30px; 
-            font-size: 1rem; 
+            font-size: 1.1rem; 
             opacity: 0; 
             transition: opacity 0.3s; 
             font-weight: 600;
-            box-shadow: 0 5px 15px rgba(239, 68, 68, 0.4);
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
             white-space: nowrap;
+            z-index: 60;
         }
         .status-pill.visible { opacity: 1; }
 
         /* RIGHT SIDE PANEL (Level) */
         .level-gauge {
             position: absolute; 
-            top: 50%; /* Center Vertically */
-            right: 40px; /* Align to right */
+            top: 50%; 
+            right: 50px; 
             transform: translateY(-50%);
-            
             width: 140px; height: 140px;
             background: rgba(0,0,0,0.4); 
             border-radius: 50%; 
             border: 3px solid rgba(255,255,255,0.3);
             display: flex; justify-content: center; align-items: center; 
             backdrop-filter: blur(4px); 
-            z-index: 50; /* Above mask */
+            z-index: 50; 
         }
         .level-inner-ring { width: 50px; height: 50px; border: 2px solid rgba(255,255,255,0.8); border-radius: 50%; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); }
         .level-bubble { width: 24px; height: 24px; background-color: var(--warning); border-radius: 50%; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); transition: all 0.1s linear; box-shadow: 0 0 15px rgba(245, 158, 11, 0.8); }
@@ -175,8 +200,8 @@
         .ghost-overlay {
             position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
             width: 320px; height: 480px; border-radius: 9999px; border: 4px dashed rgba(255, 255, 255, 0.5);
-            z-index: 10; /* Low z-index so the box-shadow mask is behind the UI panels */
-            box-shadow: 0 0 0 9999px rgba(0,0,0,0.6); /* The Dark Mask */
+            z-index: 10; 
+            box-shadow: 0 0 0 9999px rgba(0,0,0,0.6); 
             transition: all 0.2s;
         }
         
@@ -221,7 +246,7 @@
 </head>
 <body>
 
-<div class="container">
+<div class="container" id="mainContainer">
     
     <div id="step-welcome" class="step active">
         <h1>Headphone Sizing Tool</h1>
@@ -291,8 +316,9 @@
                     <h2 id="instruct-title">Align Nose</h2>
                     <p id="instruct-desc">Center your nose on the crosshair</p>
                 </div>
-                <div id="warning-msg" class="status-pill">Turn Head Straight</div>
             </div>
+
+            <div id="warning-msg" class="status-pill">Turn Head Straight</div>
 
             <div class="countdown-overlay" id="countdown">3</div>
 
@@ -353,6 +379,7 @@
     let currentGhostH = 450;
 
     // --- DOM Elements ---
+    const mainContainer = document.getElementById('mainContainer');
     const pages = {
         welcome: document.getElementById('step-welcome'),
         calib: document.getElementById('step-calib'),
@@ -381,8 +408,16 @@
     };
 
     // --- Navigation ---
-    function hideAll() { Object.values(pages).forEach(p => p.classList.remove('active')); }
-    function nextStep(id) { hideAll(); pages[idMap(id)].classList.add('active'); }
+    function hideAll() { 
+        Object.values(pages).forEach(p => p.classList.remove('active')); 
+        mainContainer.classList.remove('camera-mode'); // Reset full width
+    }
+    
+    function nextStep(id) { 
+        hideAll(); 
+        pages[idMap(id)].classList.add('active'); 
+    }
+    
     function idMap(id) {
         if(id.includes('welcome')) return 'welcome';
         if(id.includes('calib')) return 'calib';
@@ -410,6 +445,9 @@
         ui.countdown.style.display = 'none';
 
         nextStep('step-camera');
+        
+        // ENTER CAMERA MODE (Expand to full width)
+        mainContainer.classList.add('camera-mode');
         
         if (!window.cameraStarted) {
             initCamera();
@@ -478,6 +516,7 @@
             const eyeMidX = (leftEye.x + rightEye.x) / 2;
             const eyeMidY = (leftEye.y + rightEye.y) / 2;
 
+            // Ghost Sizing
             const top = results.faceLandmarks[10].y;
             const bottom = results.faceLandmarks[152].y;
             const faceH = (bottom - top) * h;
@@ -485,6 +524,10 @@
             currentGhostH = lerp(currentGhostH, Math.max(300, faceH * 1.5), 0.1);
             ui.ghost.style.width = `${currentGhostW}px`;
             ui.ghost.style.height = `${currentGhostH}px`;
+
+            // Position Warning Pill dynamically at the bottom of the ghost
+            // Ghost is centered (50%), so bottom edge is 50% + half height + padding
+            ui.warning.style.top = `calc(50% + ${currentGhostH / 2 + 30}px)`;
 
             // --- LEVEL GAUGE ---
             const yawRaw = (nose.x - eyeMidX); 
@@ -567,7 +610,6 @@
                     );
                     const mmPerPixel = userIPD / irisDistPx;
 
-                    // Hands
                     const lWrist = results.leftHandLandmarks[0];
                     const rWrist = results.rightHandLandmarks[0];
                     const lIndex = results.leftHandLandmarks[8];
@@ -576,31 +618,20 @@
                     let resultMM = 0;
 
                     if (mode === 'breadth') {
-                        // Euclidean dist between Index Fingers
                         const distPx = distEuclidean(
                             {x:lIndex.x*w, y:lIndex.y*h},
                             {x:rIndex.x*w, y:rIndex.y*h}
                         );
                         resultMM = distPx * mmPerPixel;
                     } else {
-                        // HEIGHT MODE with PALM Logic
-                        // 1. Identify which hand is higher (top hand) based on Wrist Y
-                        // 2. For the top hand, use the lowest point of the palm to compress hair.
-                        //    Wrist (0) is usually the lowest point when palm is flat on head.
-                        
                         let topY, sideY;
-                        
                         if (lWrist.y < rWrist.y) {
-                            // Left hand is top
-                            // Use Wrist (0) as contact point
                             topY = lWrist.y * h;
                             sideY = rIndex.y * h;
                         } else {
-                            // Right hand is top
                             topY = rWrist.y * h;
                             sideY = lIndex.y * h;
                         }
-                        
                         resultMM = Math.abs(sideY - topY) * mmPerPixel;
                     }
 

@@ -55,7 +55,6 @@
             transition: padding 0.3s;
         }
 
-        /* Fullscreen Mode for Camera */
         .container.camera-mode {
             padding: 0;
         }
@@ -100,108 +99,44 @@
 
         /* Camera View */
         .camera-container {
-            position: relative; 
-            width: 100%; 
-            height: 100%; 
-            border-radius: 32px;
-            overflow: hidden; 
-            background: #000;
+            position: relative; width: 100%; height: 100%; border-radius: 32px;
+            overflow: hidden; background: #000;
         }
         video { width: 100%; height: 100%; object-fit: cover; transform: scaleX(-1); }
         canvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; transform: scaleX(-1); }
         
         /* LEFT SIDE PANEL */
         .ui-left-panel {
-            position: absolute;
-            top: 50%;
-            left: 50px; 
-            transform: translateY(-50%);
-            width: 350px;
-            display: flex;
-            flex-direction: column;
-            align-items: flex-start;
-            gap: 15px;
-            z-index: 50; 
-            pointer-events: none;
+            position: absolute; top: 50%; left: 50px; transform: translateY(-50%);
+            width: 350px; display: flex; flex-direction: column; align-items: flex-start;
+            gap: 15px; z-index: 50; pointer-events: none;
         }
 
-        /* Instructions */
         .instruction-banner {
-            background: none; 
-            backdrop-filter: none; 
-            border: none;
-            box-shadow: none;
-            padding: 0;
-            text-align: left;
-            color: white; 
-            text-shadow: none;
-            transition: all 0.3s;
+            background: none; backdrop-filter: none; border: none; box-shadow: none;
+            padding: 0; text-align: left; color: white; text-shadow: none; transition: all 0.3s;
         }
-        
-        .instruction-banner.active-step { 
-            background: none;
-            border: none;
-            transform: none;
-        }
-
-        .instruction-banner h2 { 
-            margin: 0; 
-            font-size: 2.2rem; 
-            font-weight: 700; 
-            line-height: 1.2; 
-            text-shadow: none;
-            color: white;
-            background: none;
-        }
-        
-        .instruction-banner.active-step h2 {
-            color: white;
-            background: none;
-            padding: 0;
-        }
-
-        .instruction-banner p { 
-            margin: 10px 0 0 0; 
-            font-size: 1.1rem; 
-            color: rgba(255,255,255,0.9); 
-            text-align: left; 
-            font-weight: 500;
-            text-shadow: none;
-        }
+        .instruction-banner.active-step { background: none; border: none; transform: none; }
+        .instruction-banner h2 { margin: 0; font-size: 2.2rem; font-weight: 700; line-height: 1.2; text-shadow: none; color: white; background: none; }
+        .instruction-banner.active-step h2 { color: white; background: none; padding: 0; }
+        .instruction-banner p { margin: 10px 0 0 0; font-size: 1.1rem; color: rgba(255,255,255,0.9); text-align: left; font-weight: 500; text-shadow: none; }
 
         /* Warning Pill */
         .status-pill {
-            position: absolute;
-            left: 50%;
-            transform: translate(-50%, 0); 
-            background: rgba(239, 68, 68, 0.95); 
-            color: white; 
-            padding: 10px 28px;
-            border-radius: 30px; 
-            font-size: 1.1rem; 
-            opacity: 0; 
-            transition: opacity 0.3s; 
-            font-weight: 600;
-            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
-            white-space: nowrap;
-            z-index: 60;
-            text-shadow: none;
+            position: absolute; left: 50%; transform: translate(-50%, 0); 
+            background: rgba(239, 68, 68, 0.95); color: white; padding: 10px 28px;
+            border-radius: 30px; font-size: 1.1rem; opacity: 0; transition: opacity 0.3s; 
+            font-weight: 600; box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3); white-space: nowrap;
+            z-index: 60; text-shadow: none;
         }
         .status-pill.visible { opacity: 1; }
 
         /* RIGHT SIDE PANEL */
         .level-gauge {
-            position: absolute; 
-            top: 50%; 
-            right: 50px; 
-            transform: translateY(-50%);
-            width: 140px; height: 140px;
-            background: rgba(0,0,0,0.4); 
-            border-radius: 50%; 
-            border: 3px solid rgba(255,255,255,0.3);
-            display: flex; justify-content: center; align-items: center; 
-            backdrop-filter: blur(4px); 
-            z-index: 50; 
+            position: absolute; top: 50%; right: 50px; transform: translateY(-50%);
+            width: 140px; height: 140px; background: rgba(0,0,0,0.4); border-radius: 50%; 
+            border: 3px solid rgba(255,255,255,0.3); display: flex; justify-content: center; align-items: center; 
+            backdrop-filter: blur(4px); z-index: 50; 
         }
         .level-inner-ring { width: 50px; height: 50px; border: 2px solid rgba(255,255,255,0.8); border-radius: 50%; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); }
         .level-bubble { width: 24px; height: 24px; background-color: var(--warning); border-radius: 50%; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); transition: all 0.1s linear; box-shadow: 0 0 15px rgba(245, 158, 11, 0.8); }
@@ -214,9 +149,7 @@
         .ghost-overlay {
             position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
             width: 320px; height: 480px; border-radius: 9999px; border: 4px dashed rgba(255, 255, 255, 0.5);
-            z-index: 10; 
-            box-shadow: 0 0 0 9999px rgba(0,0,0,0.6); 
-            transition: all 0.2s;
+            z-index: 10; box-shadow: 0 0 0 9999px rgba(0,0,0,0.6); transition: all 0.2s;
         }
         
         .crosshair {
@@ -228,8 +161,7 @@
         
         .countdown-overlay {
             position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
-            font-size: 10rem; color: white; font-weight: 700; 
-            text-shadow: none;
+            font-size: 10rem; color: white; font-weight: 700; text-shadow: none;
             z-index: 100; display: none;
         }
 
@@ -388,8 +320,9 @@
     let isHeadPostureValid = false;
     let countdownTimer = null; 
 
+    // REDUCED FRAME BUFFER TO 5 FOR SPEED
     const ALIGN_FRAMES_NEEDED = 20;
-    const MEASURE_FRAMES = 10;
+    const MEASURE_FRAMES = 5; 
     let currentGhostW = 300;
     let currentGhostH = 450;
 
@@ -536,13 +469,13 @@
             const bottom = results.faceLandmarks[152].y;
             const faceH = (bottom - top) * h;
             
-            // INCREASED WIDTH FACTOR TO 1.1 (110% of Face Height)
+            // WIDE PILL SHAPE
             currentGhostW = lerp(currentGhostW, Math.max(260, faceH * 1.1), 0.1);
             currentGhostH = lerp(currentGhostH, Math.max(300, faceH * 1.5), 0.1);
             ui.ghost.style.width = `${currentGhostW}px`;
             ui.ghost.style.height = `${currentGhostH}px`;
 
-            // Position Warning Pill dynamically at the bottom of the ghost
+            // Position Warning Pill dynamically
             ui.warning.style.top = `calc(50% + ${currentGhostH / 2 + 30}px)`;
 
             // --- LEVEL GAUGE ---
@@ -579,7 +512,7 @@
 
             isHeadPostureValid = isFaceAligned;
             
-            // CORRECTED: Tracking IRIS landmarks (468, 473) for dots, not corners
+            // Draw Iris Dots
             const lIris = results.faceLandmarks[468];
             const rIris = results.faceLandmarks[473];
             drawDot(canvasCtx, lIris.x*w, lIris.y*h, "#10b981");
@@ -687,6 +620,12 @@
             } else {
                 clearInterval(countdownTimer);
                 ui.countdown.style.display = 'none';
+                
+                // --- IMMEDIATE FEEDBACK ---
+                ui.countdown.style.display = 'block';
+                ui.countdown.innerText = "Analyzing...";
+                ui.countdown.style.fontSize = "2rem"; // Smaller text
+                
                 currentPhase = 3; 
             }
         }, 1000);

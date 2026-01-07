@@ -542,7 +542,7 @@
             ui.ghost.style.width = `${currentGhostW}px`;
             ui.ghost.style.height = `${currentGhostH}px`;
 
-            // Position Warning Pill dynamically
+            // Position Warning Pill dynamically at the bottom of the ghost
             ui.warning.style.top = `calc(50% + ${currentGhostH / 2 + 30}px)`;
 
             // --- LEVEL GAUGE ---
@@ -578,8 +578,12 @@
             }
 
             isHeadPostureValid = isFaceAligned;
-            drawDot(canvasCtx, leftEye.x*w, leftEye.y*h, "#10b981");
-            drawDot(canvasCtx, rightEye.x*w, rightEye.y*h, "#10b981");
+            
+            // CORRECTED: Tracking IRIS landmarks (468, 473) for dots, not corners
+            const lIris = results.faceLandmarks[468];
+            const rIris = results.faceLandmarks[473];
+            drawDot(canvasCtx, lIris.x*w, lIris.y*h, "#10b981");
+            drawDot(canvasCtx, rIris.x*w, rIris.y*h, "#10b981");
 
             updateInstructions(currentPhase);
             ui.warning.innerText = warning;
